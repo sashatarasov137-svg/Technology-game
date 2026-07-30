@@ -37,6 +37,13 @@ const el = {
 
 const partEls = new Map();   // partId -> its <div> on screen
 
+/* Is this a finger or a mouse? A fingertip is imprecise and wobbles,
+   so it needs a much larger movement before we call it a drag —
+   otherwise a simple tap gets mistaken for one and a switch never
+   toggles. */
+const COARSE_POINTER = window.matchMedia('(pointer: coarse)').matches;
+const DRAG_THRESHOLD = COARSE_POINTER ? 12 : 5;
+
 
 /* ============================================================
    Adding, moving and removing parts
@@ -73,11 +80,11 @@ function findFreeSpot() {
   const cols = Math.max(1, Math.floor((el.bench.clientWidth - 40) / gapX));
   for (let i = 0; i < 60; i++) {
     const x = 30 + (i % cols) * gapX;
-    const y = 28 + Math.floor(i / cols) * gapY;
+    const y = 78 + Math.floor(i / cols) * gapY;   // clear of the connect prompt
     const taken = state.parts.some(p => Math.abs(p.x - x) < 20 && Math.abs(p.y - y) < 20);
     if (!taken) return { x, y };
   }
-  return { x: 30, y: 28 };
+  return { x: 30, y: 78 };
 }
 
 function removePart(id) {
@@ -223,9 +230,13 @@ function attachDragAndPress(node, part, spec) {
     offX = e.clientX - rect.left - part.x;
     offY = e.clientY - rect.top  - part.y;
     dragging = true; moved = false;
-    node.setPointerCapture(e.pointerId);
     node.classList.add('grabbing');
     if (spec.momentary) part.state.pressed = true;      // hold-to-close
+
+    // Keep receiving events even if the finger slides off the part.
+    // Wrapped because some browsers refuse the capture, and if that
+    // threw here it would abort the press above.
+    try { node.setPointerCapture(e.pointerId); } catch (err) { /* not fatal */ }
   });
 
   node.addEventListener('pointermove', e => {
@@ -233,11 +244,12 @@ function attachDragAndPress(node, part, spec) {
     const rect = el.bench.getBoundingClientRect();
     const nx = e.clientX - rect.left - offX;
     const ny = e.clientY - rect.top  - offY;
-    if (!moved && Math.abs(nx - part.x) + Math.abs(ny - part.y) < 5) return;
+    if (!moved && Math.abs(nx - part.x) + Math.abs(ny - part.y) < DRAG_THRESHOLD) return;
     moved = true;
     if (spec.momentary) part.state.pressed = false;     // a drag is not a press
-    part.x = clamp(nx, 4, el.bench.clientWidth  - PART_W - 4);
-    part.y = clamp(ny, 4, el.bench.clientHeight - PART_H - 4);
+    // Leave a margin so the delete button never falls off the bench.
+    part.x = clamp(nx, 16, el.bench.clientWidth  - PART_W - 16);
+    part.y = clamp(ny, 16, el.bench.clientHeight - PART_H - 24);
     node.style.left = part.x + 'px';
     node.style.top  = part.y + 'px';
     drawWires();
@@ -332,6 +344,10 @@ function drawWires(liveParts) {
 
 function refreshLegHighlights() {
   document.querySelectorAll('.leg-dot').forEach(dot => dot.classList.remove('armed'));
+
+  const pill = document.getElementById('connectPill');
+  pill.classList.toggle('hidden', !state.armedLeg);
+
   if (!state.armedLeg) {
     el.bench.classList.remove('wiring');
     return;
@@ -444,12 +460,6 @@ function flashStatus(text) {
 }
 
 function updateStatus(sim) {
-  // Half-drawn wire? That is what the user needs to know right now.
-  if (state.armedLeg) {
-    el.statusText.textContent = 'Now click another leg to finish the wire. Press Esc to cancel.';
-    el.statusBar.className = 'status-bar level-warn';
-    return;
-  }
   // Show the most serious thing first: danger, then warning, etc.
   const order = { danger: 0, warn: 1, info: 2, good: 3 };
   const issue = [...sim.issues].sort((a, b) => order[a.level] - order[b.level])[0];
@@ -631,6 +641,10 @@ function buildPalette() {
 }
 
 function init() {
+  const verb = COARSE_POINTER ? 'Tap' : 'Click';
+  document.querySelector('.connect-pill-text').textContent = `🔗 ${verb} another leg to connect`;
+  document.querySelector('.panel-hint').textContent = `${verb} a part to drop it on the bench.`;
+
   buildPalette();
   buildChallengeList();
   load();
@@ -659,6 +673,12 @@ function init() {
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     modal.classList.add('hidden');
+    state.armedLeg = null;
+    refreshLegHighlights();
+  });
+
+  document.getElementById('connectCancel').addEventListener('click', e => {
+    e.stopPropagation();
     state.armedLeg = null;
     refreshLegHighlights();
   });

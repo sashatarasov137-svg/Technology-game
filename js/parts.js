@@ -58,7 +58,7 @@ const PARTS = {
 
   resistor: {
     name: 'Resistor',
-    blurb: 'Slows the current down so an LED does not burn out. Click it to change its value.',
+    blurb: 'Slows the current down so an LED does not burn out. Tap it to change its value.',
     resistance: 470,
     values: [220, 470, 1000, 10000],   // click the part to cycle through these
     legs: [
@@ -76,7 +76,7 @@ const PARTS = {
 
   switch: {
     name: 'Switch',
-    blurb: 'Click to flick it. Open = gap in the circuit, closed = current flows.',
+    blurb: 'Tap to flick it. Open = gap in the circuit, closed = current flows.',
     resistance: 0,
     toggle: true,                 // has an on/off state you can click
     startsClosed: false,

@@ -187,6 +187,52 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 .bench-empty strong { color: var(--text); font-size: 17px; }
 
 
+/* ---------- the connect prompt ---------------------------- */
+
+.connect-pill {
+  position: absolute;
+  top: 16px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px 11px 18px;
+  border-radius: 999px;
+  background: #1f6feb;
+  color: #fff;
+  font-size: 14.5px; font-weight: 600;
+  box-shadow: 0 8px 24px rgba(31, 111, 235, .45);
+  animation: pill-in .18s ease-out;
+  max-width: calc(100% - 24px);
+  /* Critical: the pill floats over the bench, so it must never
+     swallow a tap meant for a leg underneath it. Only its Cancel
+     button is interactive. */
+  pointer-events: none;
+}
+@keyframes pill-in {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.connect-pill-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.connect-pill-cancel {
+  flex: none;
+  border: 0; border-radius: 999px;
+  background: rgba(255, 255, 255, .22);
+  color: #fff; font: inherit; font-size: 13px; font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+  touch-action: manipulation;
+  pointer-events: auto;
+}
+.connect-pill-cancel:hover { background: rgba(255, 255, 255, .34); }
+
+/* The armed leg pulses so you can see where the wire starts from. */
+.leg-dot.armed { animation: leg-pulse 1.3s ease-in-out infinite; }
+@keyframes leg-pulse {
+  0%, 100% { box-shadow: 0 0 0 5px rgba(255, 176, 32, .22); }
+  50%      { box-shadow: 0 0 0 11px rgba(255, 176, 32, .10); }
+}
+
+
 /* ---------- wires ----------------------------------------- */
 
 .wire {
@@ -268,6 +314,8 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 .leg-dot {
   position: absolute;
   width: 18px; height: 18px;
+  /* The dot you see stays small and tidy; the area that responds to
+     a finger is much bigger. Apple's minimum is 44px. */
   transform: translate(-50%, -50%);
   border-radius: 50%;
   border: 2px solid #5a708c;
@@ -276,6 +324,14 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
   display: grid; place-items: center;
   transition: border-color .15s, background .15s, box-shadow .15s, transform .12s;
   z-index: 3;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.leg-dot::after {
+  content: '';
+  position: absolute;
+  inset: -15px;                 /* 18 + 15 + 15 = 48px of tappable area */
+  border-radius: 50%;
 }
 .leg-dot:hover {
   border-color: var(--accent);
@@ -455,6 +511,51 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 .help-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 9px; font-size: 14px; }
 .help-steps strong { color: var(--accent); }
 .help-foot { margin-top: 16px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
+
+
+/* ---------- touch screens (iPad, phones) ------------------
+   A finger has no hover, so anything that only appears on hover is
+   invisible on a tablet. Everything below is about making the app
+   usable with a fingertip rather than a mouse pointer.
+   ---------------------------------------------------------- */
+
+@media (hover: none), (pointer: coarse) {
+  /* Delete buttons can never be hovered into view — always show them. */
+  .part-del {
+    opacity: 1;
+    width: 30px; height: 30px;
+    top: -13px; left: -13px;
+    font-size: 20px;
+    background: var(--panel);
+  }
+
+  /* Bigger, easier-to-hit legs. */
+  .leg-dot { width: 24px; height: 24px; border-width: 2.5px; }
+  .leg-dot::after { inset: -14px; }
+  .leg-label { font-size: 12px; }
+
+  /* A fatter invisible wire, so tapping one to delete it is realistic. */
+  .wire-hit { stroke-width: 34; }
+  .wire { stroke-width: 4.5; }
+
+  /* Chunkier controls throughout. */
+  .btn { padding: 10px 14px; font-size: 14px; }
+  .pot-slider { height: 26px; }
+  .hint-toggle, .reset-link { padding: 6px 0; font-size: 13.5px; }
+  .modal-close { font-size: 34px; top: 8px; right: 12px; padding: 6px; }
+  .connect-pill { top: 12px; font-size: 15px; }
+}
+
+/* ---------- tablets in landscape --------------------------
+   Narrower side panels so the bench itself keeps a usable width.
+   ---------------------------------------------------------- */
+
+@media (min-width: 1081px) and (max-width: 1400px) {
+  .layout { grid-template-columns: 244px 1fr 272px; }
+  .palette-item { grid-template-columns: 50px 1fr; padding: 8px 9px; }
+  .palette-art { width: 50px; height: 32px; }
+  .palette-blurb { font-size: 11px; }
+}
 
 
 /* ---------- smaller screens ------------------------------- */

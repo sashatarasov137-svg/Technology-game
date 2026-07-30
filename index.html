@@ -28,7 +28,7 @@
     <!-- LEFT: the parts drawer -->
     <aside class="panel panel-parts">
       <h2 class="panel-title">Parts</h2>
-      <p class="panel-hint">Click a part to drop it on the bench.</p>
+      <p class="panel-hint">Tap a part to drop it on the bench.</p>
       <div id="palette" class="palette"><!-- filled in by JavaScript --></div>
 
       <div class="readout" id="readout">
@@ -44,9 +44,17 @@
       <div id="bench" class="bench">
         <svg id="wireLayer" class="wire-layer"><!-- wires are drawn here --></svg>
         <div id="partsLayer" class="parts-layer"><!-- parts live here --></div>
+
+        <!-- Floats over the bench while a wire is half-drawn, so the
+             prompt is next to your finger instead of at the bottom
+             of the screen. -->
+        <div id="connectPill" class="connect-pill hidden">
+          <span class="connect-pill-text">🔗 Tap another leg to connect</span>
+          <button id="connectCancel" class="connect-pill-cancel">Cancel</button>
+        </div>
         <div id="benchEmpty" class="bench-empty">
           <p><strong>Your bench is empty.</strong></p>
-          <p>Click a part on the left to add it, then click the small circles on two parts to run a wire between them.</p>
+          <p>Tap a part to add it, then tap the small circles on two parts to run a wire between them.</p>
         </div>
       </div>
       <div id="statusBar" class="status-bar">
@@ -74,14 +82,14 @@
       <button id="helpClose" class="modal-close" aria-label="Close">&times;</button>
       <h2>How to use SparkLab</h2>
       <ol class="help-steps">
-        <li><strong>Add parts.</strong> Click anything in the Parts drawer on the left and it appears on the bench.</li>
+        <li><strong>Add parts.</strong> Tap anything in the Parts drawer and it appears on the bench.</li>
         <li><strong>Move them.</strong> Drag a part around to tidy up your layout.</li>
-        <li><strong>Wire them up.</strong> Every part has a small circle on each side — these are its legs. Click one circle, then click another, and a wire connects them.</li>
+        <li><strong>Wire them up.</strong> Every part has a small circle on each side — these are its legs. Tap one circle, then tap another, and a wire connects them.</li>
         <li><strong>Make a loop.</strong> Electricity only flows in a complete circle: out of the battery's <strong>+</strong>, through your parts, and back into the battery's <strong>−</strong>. No loop, nothing happens.</li>
         <li><strong>Mind the LED.</strong> An LED only works one way round. Its <strong>+</strong> leg must face the battery's <strong>+</strong>.</li>
         <li><strong>Always use a resistor.</strong> An LED wired straight to a battery gets far too much current and would burn out in real life. SparkLab warns you instead of letting it die.</li>
       </ol>
-      <p class="help-foot">Delete a part with the <strong>&times;</strong> that appears when you hover over it. Delete a wire by clicking it.</p>
+      <p class="help-foot">Remove a part with the <strong>&times;</strong> in its corner. Remove a wire by tapping it.</p>
     </div>
   </div>
 

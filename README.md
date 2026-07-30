@@ -34,6 +34,14 @@ your browser and works immediately. There is nothing to install and nothing to r
 Your circuit and your progress are saved in your own browser, so you can close the tab
 and come back to it later.
 
+### On an iPad
+
+SparkLab is built for touch as well as mouse. Tap a leg and a floating prompt appears —
+tap a second leg to run the wire between them, or tap Cancel to back out. Every leg has a
+48-pixel invisible tap area around its small visible dot, delete buttons are always shown
+rather than waiting for a hover that a finger can never do, and a tap is allowed to wobble
+by 12 pixels before it counts as a drag, so switches toggle reliably.
+
 ---
 
 ## How the code is put together
@@ -137,6 +145,12 @@ npm install
 npm test
 ```
 
-This opens a real browser, builds circuits, and checks 38 things — that Ohm's law gives
-the right current, that a backwards LED stays dark, that a short circuit is caught, that
-each challenge unlocks correctly, and that your work survives a page reload.
+This opens a real browser and runs 58 checks across two suites:
+
+- **`tests/circuit.test.js`** — 38 checks on the electronics: that Ohm's law gives the
+  right current, that a backwards LED stays dark, that a short circuit is caught, that
+  each of the eight challenges unlocks correctly, and that your work survives a reload.
+- **`tests/touch.test.js`** — 20 checks on an emulated iPad: that tap targets meet
+  Apple's 44-pixel minimum, that delete buttons appear without a hover, that the connect
+  prompt never swallows a tap meant for a part underneath it, and that a wobbly tap
+  toggles a switch while a real drag still moves it.
