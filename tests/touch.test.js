@@ -61,7 +61,13 @@ const MIN_TAP_TARGET = 44;
   await page.reload();
   await page.tap('#helpClose');
 
-  const add = n => page.tap(`.palette-item:has(.palette-name:text-is("${n}"))`).then(() => page.waitForTimeout(90));
+  // On touch the parts drawer is a sheet, so it has to be opened first.
+  const add = async n => {
+    await page.tap('#partsBtn');
+    await page.waitForTimeout(220);
+    await page.tap(`.palette-item:has(.palette-name:text-is("${n}"))`);
+    await page.waitForTimeout(240);
+  };
 
   // === 1. The app knows it is being used by a finger ===
   check('1a  detects coarse pointer',
@@ -69,14 +75,34 @@ const MIN_TAP_TARGET = 44;
   check('1b  drag threshold relaxed',
     await page.evaluate(() => DRAG_THRESHOLD), 12);
 
+  // === 2. The bench gets the whole screen ===
+  // The side panels used to occupy over half an iPad's display.
+  const share = await page.evaluate(() => {
+    const b = document.getElementById('bench');
+    return Math.round(b.clientWidth * b.clientHeight / (innerWidth * innerHeight) * 100);
+  });
+  check('2a  bench fills the screen', share > 80, true);
+
   await add('Battery'); await add('LED'); await add('Resistor'); await add('Switch');
 
-  // === 2. Delete buttons are visible without hovering ===
+  // === 2b. Sheets open, then get out of the way ===
+  check('2c  sheet closes after adding',
+    await page.evaluate(() => document.querySelector('.panel-parts').classList.contains('open')), false);
+  await page.tap('#challengesBtn');
+  await page.waitForTimeout(240);
+  check('2d  challenges sheet opens',
+    await page.evaluate(() => document.querySelector('.panel-challenges').classList.contains('open')), true);
+  await page.tap('#sheetBackdrop');
+  await page.waitForTimeout(240);
+  check('2e  backdrop closes it',
+    await page.evaluate(() => document.querySelector('.panel-challenges').classList.contains('open')), false);
+
+  // === 2f. Delete buttons are visible without hovering ===
   // A touch screen cannot hover, so a hover-only control is unreachable.
-  check('2a  delete button visible',
+  check('2f  delete button visible',
     await page.evaluate(() => getComputedStyle(document.querySelector('.part-del')).opacity), '1');
   const delBox = await page.locator('.part-del').first().boundingBox();
-  check('2b  delete button >= 28px', delBox.width >= 28 && delBox.height >= 28, true);
+  check('2g  delete button >= 28px', delBox.width >= 28 && delBox.height >= 28, true);
 
   // === 3. Legs are big enough to hit with a fingertip ===
   // The visible dot stays small, but the area that responds must not.
@@ -191,11 +217,42 @@ const MIN_TAP_TARGET = 44;
   await page.waitForTimeout(150);
   check('11b tapping a wire deletes it', await page.evaluate(() => state.wires.length), 0);
 
+  // === 13. Tapping a part's body finishes a wire ===
+  // The whole point: you should not have to hit a small leg exactly.
+  // Tap a leg to start, then tap anywhere on the target part.
+  await page.evaluate(() => { clearBench(); addPart('battery'); addPart('resistor'); });
+  await page.waitForTimeout(200);
+  await page.tap('.part-battery .leg-dot[data-leg="pos"]');
+  await page.waitForTimeout(120);
+  const body = await page.locator('.part-resistor .part-art').boundingBox();
+  await page.touchscreen.tap(body.x + body.width / 2, body.y + body.height / 2);
+  await page.waitForTimeout(200);
+  check('13a body tap completes the wire',
+    await page.evaluate(() => state.wires.length), 1);
+
+  // It should pick the leg nearest the tap, not an arbitrary one.
+  await page.tap('.part-battery .leg-dot[data-leg="neg"]');
+  await page.waitForTimeout(120);
+  await page.touchscreen.tap(body.x + body.width - 6, body.y + body.height / 2);   // right end
+  await page.waitForTimeout(200);
+  check('13b joins to the nearest leg',
+    await page.evaluate(() => state.wires[1].to.legId), 'b');
+
+  // Tapping the part the wire started from cancels it.
+  await page.tap('.part-battery .leg-dot[data-leg="pos"]');
+  await page.waitForTimeout(120);
+  const bat = await page.locator('.part-battery .part-art').boundingBox();
+  await page.touchscreen.tap(bat.x + bat.width / 2, bat.y + bat.height / 2);
+  await page.waitForTimeout(200);
+  check('13c tapping the start cancels', await pillHidden(), true);
+  check('13d no self-wire made',
+    await page.evaluate(() => state.wires.length), 2);
+
   // === 12. Nothing overflows sideways on an iPad ===
   check('12a no sideways scroll',
     await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), false);
   check('12b bench is usably wide',
-    await page.evaluate(() => document.getElementById('bench').clientWidth > 450), true);
+    await page.evaluate(() => document.getElementById('bench').clientWidth > 900), true);
 
   console.log(`\n${pass} passed, ${fail} failed`);
   console.log(errors.length ? 'ERRORS:\n' + errors.join('\n') : 'No console errors.');

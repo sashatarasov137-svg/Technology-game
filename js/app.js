@@ -223,12 +223,13 @@ function createPartElement(part) {
    resistor's value). We tell them apart by whether the pointer
    moved before it was released. */
 function attachDragAndPress(node, part, spec) {
-  let dragging = false, moved = false, offX = 0, offY = 0;
+  let dragging = false, moved = false, offX = 0, offY = 0, tapAt = null;
 
   node.addEventListener('pointerdown', e => {
     const rect = el.bench.getBoundingClientRect();
     offX = e.clientX - rect.left - part.x;
     offY = e.clientY - rect.top  - part.y;
+    tapAt = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     dragging = true; moved = false;
     node.classList.add('grabbing');
     if (spec.momentary) part.state.pressed = true;      // hold-to-close
@@ -260,14 +261,38 @@ function attachDragAndPress(node, part, spec) {
     dragging = false;
     node.classList.remove('grabbing');
     if (spec.momentary) part.state.pressed = false;
-    if (!moved) onPartClick(part, spec);
+    if (!moved) onPartClick(part, spec, tapAt);
     save();
   };
   node.addEventListener('pointerup', release);
   node.addEventListener('pointercancel', release);
 }
 
-function onPartClick(part, spec) {
+/* Which of this part's legs is closest to where the finger landed? */
+function nearestLeg(part, point) {
+  const legs = PARTS[part.type].legs;
+  let best = legs[0], bestDist = Infinity;
+  for (const leg of legs) {
+    const d = Math.hypot(part.x + leg.x - point.x, part.y + leg.y - point.y);
+    if (d < bestDist) { bestDist = d; best = leg; }
+  }
+  return best;
+}
+
+function onPartClick(part, spec, tapAt) {
+  /* Half-drawn wire? Then this tap means "join to that part", and we
+     work out which leg was meant rather than making the user hit a
+     small circle exactly. */
+  if (state.armedLeg) {
+    if (state.armedLeg.partId === part.id) {
+      state.armedLeg = null;              // tapping the start again cancels
+      refreshLegHighlights();
+      return;
+    }
+    onLegClick(part.id, nearestLeg(part, tapAt || { x: part.x, y: part.y }).id);
+    return;
+  }
+
   if (spec.toggle) {
     part.state.closed = !part.state.closed;
   } else if (spec.values) {
@@ -635,9 +660,31 @@ function buildPalette() {
       <svg class="palette-art" viewBox="0 0 ${PART_W} ${PART_H}">${spec.art}</svg>
       <span class="palette-name">${spec.name}</span>
       <span class="palette-blurb">${spec.blurb}</span>`;
-    card.addEventListener('click', () => addPart(type));
+    card.addEventListener('click', () => {
+      addPart(type);
+      // Get out of the way so the new part is visible straight away.
+      if (sheetMode()) closeSheets();
+    });
     el.palette.appendChild(card);
   }
+}
+
+/* ---- the sliding panels used on touch screens ---- */
+
+function sheetMode() {
+  return window.matchMedia('(pointer: coarse), (max-width: 900px)').matches;
+}
+
+function openSheet(which) {
+  closeSheets();
+  const panel = document.querySelector(which === 'parts' ? '.panel-parts' : '.panel-challenges');
+  panel.classList.add('open');
+  document.getElementById('sheetBackdrop').classList.remove('hidden');
+}
+
+function closeSheets() {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('open'));
+  document.getElementById('sheetBackdrop').classList.add('hidden');
 }
 
 function init() {
@@ -658,7 +705,8 @@ function init() {
 
   const soundBtn = document.getElementById('soundToggle');
   const paintSoundBtn = () => {
-    soundBtn.textContent = state.soundOn ? '🔊 Sound' : '🔇 Muted';
+    soundBtn.firstChild.textContent = state.soundOn ? '🔊 ' : '🔇 ';
+    soundBtn.querySelector('.btn-word').textContent = state.soundOn ? 'Sound' : 'Muted';
     soundBtn.classList.toggle('muted', !state.soundOn);
   };
   soundBtn.addEventListener('click', () => { state.soundOn = !state.soundOn; paintSoundBtn(); save(); });
@@ -673,9 +721,15 @@ function init() {
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     modal.classList.add('hidden');
+    closeSheets();
     state.armedLeg = null;
     refreshLegHighlights();
   });
+
+  document.getElementById('partsBtn').addEventListener('click', () => openSheet('parts'));
+  document.getElementById('challengesBtn').addEventListener('click', () => openSheet('challenges'));
+  document.getElementById('sheetBackdrop').addEventListener('click', closeSheets);
+  document.querySelectorAll('.sheet-close').forEach(b => b.addEventListener('click', closeSheets));
 
   document.getElementById('connectCancel').addEventListener('click', e => {
     e.stopPropagation();
@@ -698,6 +752,9 @@ function init() {
 
   // Show the guide the very first time someone visits.
   if (!localStorage.getItem(SAVE_KEY)) modal.classList.remove('hidden');
+
+  // Keep wires attached when a sheet opens or the orientation changes.
+  window.addEventListener('orientationchange', () => setTimeout(() => drawWires(), 250));
 
   requestAnimationFrame(tick);
 }

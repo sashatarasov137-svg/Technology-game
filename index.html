@@ -17,9 +17,11 @@
       <span class="brand-tag">virtual electronics workbench</span>
     </div>
     <div class="topbar-actions">
-      <button id="soundToggle" class="btn btn-ghost" title="Turn sound on or off">🔊 Sound</button>
-      <button id="clearBtn" class="btn btn-ghost" title="Remove everything from the workbench">Clear bench</button>
-      <button id="helpBtn" class="btn btn-ghost">How to use</button>
+      <button id="partsBtn" class="btn btn-sheet sheet-toggle">🧰 <span class="btn-word">Parts</span></button>
+      <button id="challengesBtn" class="btn btn-sheet sheet-toggle">🎯 <span class="btn-word">Challenges</span></button>
+      <button id="soundToggle" class="btn btn-ghost" title="Turn sound on or off">🔊 <span class="btn-word">Sound</span></button>
+      <button id="clearBtn" class="btn btn-ghost" title="Remove everything from the workbench">🗑 <span class="btn-word">Clear</span></button>
+      <button id="helpBtn" class="btn btn-ghost">? <span class="btn-word">Help</span></button>
     </div>
   </header>
 
@@ -27,6 +29,7 @@
 
     <!-- LEFT: the parts drawer -->
     <aside class="panel panel-parts">
+      <button class="sheet-close" data-sheet="parts" aria-label="Close">&times;</button>
       <h2 class="panel-title">Parts</h2>
       <p class="panel-hint">Tap a part to drop it on the bench.</p>
       <div id="palette" class="palette"><!-- filled in by JavaScript --></div>
@@ -54,7 +57,8 @@
         </div>
         <div id="benchEmpty" class="bench-empty">
           <p><strong>Your bench is empty.</strong></p>
-          <p>Tap a part to add it, then tap the small circles on two parts to run a wire between them.</p>
+          <p>Open <strong>🧰 Parts</strong> and tap something to add it. Then tap a leg on one part
+        and tap the part you want to join it to.</p>
         </div>
       </div>
       <div id="statusBar" class="status-bar">
@@ -64,6 +68,7 @@
 
     <!-- RIGHT: challenges -->
     <aside class="panel panel-challenges">
+      <button class="sheet-close" data-sheet="challenges" aria-label="Close">&times;</button>
       <h2 class="panel-title">Challenges</h2>
       <p class="panel-hint">They tick themselves off as soon as your circuit works.</p>
       <ol id="challengeList" class="challenge-list"><!-- filled in by JavaScript --></ol>
@@ -76,6 +81,8 @@
 
   </main>
 
+  <div id="sheetBackdrop" class="sheet-backdrop hidden"></div>
+
   <!-- The "How to use" pop-up. Hidden until the button is clicked. -->
   <div id="helpModal" class="modal hidden">
     <div class="modal-card">
@@ -84,7 +91,7 @@
       <ol class="help-steps">
         <li><strong>Add parts.</strong> Tap anything in the Parts drawer and it appears on the bench.</li>
         <li><strong>Move them.</strong> Drag a part around to tidy up your layout.</li>
-        <li><strong>Wire them up.</strong> Every part has a small circle on each side — these are its legs. Tap one circle, then tap another, and a wire connects them.</li>
+        <li><strong>Wire them up.</strong> Every part has a small circle on each side — these are its legs. Tap one leg to start a wire, then tap the part you want to reach. You don't have to hit its leg exactly — SparkLab joins to whichever leg is nearest.</li>
         <li><strong>Make a loop.</strong> Electricity only flows in a complete circle: out of the battery's <strong>+</strong>, through your parts, and back into the battery's <strong>−</strong>. No loop, nothing happens.</li>
         <li><strong>Mind the LED.</strong> An LED only works one way round. Its <strong>+</strong> leg must face the battery's <strong>+</strong>.</li>
         <li><strong>Always use a resistor.</strong> An LED wired straight to a battery gets far too much current and would burn out in real life. SparkLab warns you instead of letting it die.</li>

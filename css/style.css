@@ -58,6 +58,11 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 
 .topbar-actions { display: flex; gap: 8px; }
 
+/* These only exist on touch screens, where the panels are sheets. */
+.sheet-toggle, .sheet-close { display: none; }
+.btn-word { margin-left: 5px; }
+.btn-sheet { background: #1e2c3f; border-color: #33455e; font-weight: 600; }
+
 .btn {
   font: inherit; font-size: 13px;
   padding: 7px 13px;
@@ -546,11 +551,12 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
   .connect-pill { top: 12px; font-size: 15px; }
 }
 
-/* ---------- tablets in landscape --------------------------
-   Narrower side panels so the bench itself keeps a usable width.
+/* ---------- laptops between sizes -------------------------
+   Mouse-driven screens that are not very wide: narrower side panels
+   so the bench keeps a usable width.
    ---------------------------------------------------------- */
 
-@media (min-width: 1081px) and (max-width: 1400px) {
+@media (pointer: fine) and (min-width: 901px) and (max-width: 1400px) {
   .layout { grid-template-columns: 244px 1fr 272px; }
   .palette-item { grid-template-columns: 50px 1fr; padding: 8px 9px; }
   .palette-art { width: 50px; height: 32px; }
@@ -558,22 +564,79 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 }
 
 
-/* ---------- smaller screens ------------------------------- */
+/* ---------- touch layout: the bench gets the whole screen --
+   On an iPad the two side panels ate over half the display, leaving
+   the bench barely wide enough for three parts. Here they become
+   sheets that slide in over the bench when you ask for them, so
+   building always happens on a full-size canvas.
+   ---------------------------------------------------------- */
 
-@media (max-width: 1080px) {
-  html, body { overflow: auto; }
-  .layout { grid-template-columns: 1fr; height: auto; }
-  .panel { max-height: none; overflow: visible; }
-  .panel-parts { border-right: 0; border-bottom: 1px solid var(--line); order: 2; }
-  .bench-wrap { order: 1; }
-  .panel-challenges { border-left: 0; border-top: 1px solid var(--line); order: 3; }
-  .bench { height: 70vh; min-height: 460px; }
-  .palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
-  .readout { margin-top: 12px; position: static; }
+@media (pointer: coarse), (max-width: 900px) {
+
+  .layout { grid-template-columns: 1fr; }
+
+  .sheet-toggle { display: inline-flex; }
+
+  .panel {
+    position: fixed;
+    top: 58px; bottom: 0;
+    width: min(370px, 88vw);
+    z-index: 60;
+    transition: transform .26s cubic-bezier(.2, .8, .3, 1);
+    box-shadow: 0 0 40px rgba(0, 0, 0, .6);
+    padding-top: 46px;                    /* room for the close button */
+  }
+  .panel-parts      { left: 0;  transform: translateX(-102%); border-right: 1px solid var(--line); }
+  .panel-challenges { right: 0; transform: translateX(102%);  border-left:  1px solid var(--line); }
+  .panel.open       { transform: translateX(0); }
+
+  .sheet-close {
+    display: grid; place-items: center;
+    position: absolute; top: 8px; right: 10px;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--panel-hi);
+    color: var(--text);
+    font-size: 26px; line-height: 1;
+    cursor: pointer; z-index: 2;
+  }
+
+  .sheet-backdrop {
+    position: fixed; inset: 58px 0 0 0;
+    background: rgba(4, 7, 11, .55);
+    z-index: 55;
+    backdrop-filter: blur(2px);
+  }
+
+  /* The bench now fills everything below the top bar. */
+  .bench-wrap { height: calc(100vh - 58px); height: calc(100dvh - 58px); }
+
+  /* Legs grow while a wire is half-drawn, so the place to tap next
+     is obvious and hard to miss. */
+  .bench.wiring .leg-dot {
+    transform: translate(-50%, -50%) scale(1.3);
+    border-color: var(--accent);
+    background: #2a2013;
+  }
+  .bench.wiring .leg-dot.armed { transform: translate(-50%, -50%) scale(1.5); }
 }
 
-@media (max-width: 600px) {
+/* Tablets: lose the strapline, keep every button label. */
+@media (max-width: 1000px) {
   .brand-tag { display: none; }
-  .topbar { padding: 0 10px; }
-  .btn { padding: 6px 9px; font-size: 12px; }
+  .topbar { padding: 0 12px; gap: 10px; }
+  .topbar-actions { gap: 6px; }
+}
+
+/* Phones: only now fall back to icons, because there is no room. */
+@media (max-width: 640px) {
+  .btn-word { display: none; }
+  .btn { padding: 10px 12px; }
+  .brand h1 { font-size: 18px; }
+}
+
+@media (max-width: 380px) {
+  .brand h1 { font-size: 0; }
+  .brand-bolt { font-size: 24px; }
 }

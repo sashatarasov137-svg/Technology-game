@@ -36,11 +36,21 @@ and come back to it later.
 
 ### On an iPad
 
-SparkLab is built for touch as well as mouse. Tap a leg and a floating prompt appears —
-tap a second leg to run the wire between them, or tap Cancel to back out. Every leg has a
-48-pixel invisible tap area around its small visible dot, delete buttons are always shown
-rather than waiting for a hover that a finger can never do, and a tap is allowed to wobble
-by 12 pixels before it counts as a drag, so switches toggle reliably.
+SparkLab is built for touch as well as mouse, and on a tablet the layout changes to suit it.
+
+**The bench gets the whole screen.** The Parts and Challenges panels become sheets that
+slide in over the bench when you tap their buttons, then get out of the way again. On the
+desktop they stay pinned open as columns. This matters more than it sounds: as fixed
+columns they took over half an iPad's display, leaving room for barely three parts.
+
+**You don't have to hit the legs exactly.** Tap a leg to start a wire and a floating prompt
+appears. To finish it, tap anywhere on the part you want to reach — SparkLab joins to
+whichever of its legs is nearest. Tapping the part you started from cancels instead.
+
+**Everything else is sized for a finger.** Legs carry a 48-pixel invisible tap area around
+their small visible dot and grow while a wire is half-drawn, delete buttons are always
+shown rather than waiting for a hover that a finger can never do, and a tap may wobble by
+12 pixels before it counts as a drag, so switches toggle reliably.
 
 ---
 
@@ -50,7 +60,7 @@ Five files. No frameworks, no build step, no server — the whole thing is plain
 and JavaScript, which is why it can be published for free and will still work in ten years.
 
 ```
-index.html          the page: a top bar, three columns, and a hidden help pop-up
+index.html          the page: a top bar, three panels, and a hidden help pop-up
 css/style.css       how everything looks. All colours are set once at the top
 js/parts.js         the parts catalogue: size, legs, resistance and drawing for each part
 js/circuit.js       the simulation — works out where electricity flows
@@ -145,12 +155,14 @@ npm install
 npm test
 ```
 
-This opens a real browser and runs 58 checks across two suites:
+This opens a real browser and runs 66 checks across two suites:
 
 - **`tests/circuit.test.js`** — 38 checks on the electronics: that Ohm's law gives the
   right current, that a backwards LED stays dark, that a short circuit is caught, that
   each of the eight challenges unlocks correctly, and that your work survives a reload.
-- **`tests/touch.test.js`** — 20 checks on an emulated iPad: that tap targets meet
-  Apple's 44-pixel minimum, that delete buttons appear without a hover, that the connect
-  prompt never swallows a tap meant for a part underneath it, and that a wobbly tap
-  toggles a switch while a real drag still moves it.
+- **`tests/touch.test.js`** — 28 checks on an emulated iPad: that the bench really does
+  fill the screen, that the sheets open and close, that tap targets meet Apple's 44-pixel
+  minimum, that delete buttons appear without a hover, that the connect prompt never
+  swallows a tap meant for a part underneath it, that tapping a part's body finishes a
+  wire to its nearest leg, and that a wobbly tap toggles a switch while a real drag still
+  moves it.
