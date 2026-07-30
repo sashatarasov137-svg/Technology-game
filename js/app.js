@@ -52,11 +52,17 @@ const DRAG_THRESHOLD = COARSE_POINTER ? 12 : 5;
 function addPart(type) {
   const spec = PARTS[type];
 
-  if (spec.unique && state.parts.some(p => p.type === type)) {
-    flashStatus('You only need one ' + spec.name.toLowerCase() + '.');
+  // A battery and a solar panel fighting each other is a lesson for
+  // another day — one power source at a time.
+  if (spec.source && state.parts.some(p => PARTS[p.type].source)) {
+    const existing = state.parts.find(p => PARTS[p.type].source);
+    flashStatus(existing.type === type
+      ? 'You only need one ' + spec.name.toLowerCase() + '.'
+      : 'Remove the ' + PARTS[existing.type].name.toLowerCase() + ' first — one power source at a time.');
     return;
   }
 
+  const startValue = spec.capacitor ? spec.capacitance : spec.resistance;
   const part = {
     id: 'p' + (state.nextId++),
     type,
@@ -65,7 +71,11 @@ function addPart(type) {
       closed: !!spec.startsClosed,
       pressed: false,
       resistance: spec.resistance,
-      valueIndex: spec.values ? Math.max(0, spec.values.indexOf(spec.resistance)) : 0
+      capacitance: spec.capacitance || 0,
+      charge: 0,
+      sun: 100,
+      arm: spec.arm || 6,
+      valueIndex: spec.values ? Math.max(0, spec.values.indexOf(startValue)) : 0
     }
   };
   state.parts.push(part);
@@ -109,19 +119,42 @@ function clearBench() {
    Wiring: click one leg, then click another
    ============================================================ */
 
-function onLegClick(partId, legId) {
+function kindOfNode(ref) {
+  const part = state.parts.find(p => p.id === ref.partId);
+  if (!part) return null;
+  const node = nodeOf(part.type, ref.legId);
+  return node ? node.kind : null;
+}
+
+function onNodeClick(partId, legId) {
   const here = { partId, legId };
 
   if (!state.armedLeg) {
     state.armedLeg = here;
   } else if (state.armedLeg.partId === partId && state.armedLeg.legId === legId) {
-    state.armedLeg = null;                       // clicked the same leg: cancel
+    state.armedLeg = null;                       // tapped the same point: cancel
   } else {
     const from = state.armedLeg;
+
+    // You cannot solder a wire onto a spinning shaft.
+    const fromKind = kindOfNode(from), toKind = kindOfNode(here);
+    if (fromKind !== toKind) {
+      flashStatus(fromKind === 'shaft'
+        ? 'A drive shaft only links to another shaft (the square points).'
+        : 'A wire only joins legs (the round points), not a drive shaft.');
+      state.armedLeg = null;
+      refreshLegHighlights();
+      return;
+    }
+
     const exists = state.wires.some(w => sameLeg(w.from, from) && sameLeg(w.to, here)
                                       || sameLeg(w.from, here) && sameLeg(w.to, from));
     if (!exists) {
-      state.wires.push({ id: 'w' + (state.nextId++), from, to: here });
+      state.wires.push({
+        id: 'w' + (state.nextId++),
+        kind: fromKind === 'shaft' ? 'drive' : 'wire',
+        from, to: here
+      });
       rebuildWires();
       save();
     }
@@ -169,37 +202,42 @@ function createPartElement(part) {
     <button class="part-del" title="Remove">&times;</button>
   `;
 
-  // Legs — the little circles you click to start a wire.
-  for (const leg of spec.legs) {
+  /* Connection points. Round ones carry electricity, square ones
+     carry turning — and the two never join to each other. */
+  for (const point of nodesOf(part.type)) {
     const dot = document.createElement('button');
-    dot.className = 'leg-dot' + (leg.label ? ' leg-' + (leg.polarity || leg.role || '') : '');
-    dot.style.left = leg.x + 'px';
-    dot.style.top  = leg.y + 'px';
-    dot.dataset.leg = leg.id;
-    dot.title = leg.label ? 'Leg ' + leg.label : 'Leg';
-    if (leg.label) dot.innerHTML = `<span class="leg-label">${leg.label}</span>`;
+    dot.className = (point.kind === 'shaft' ? 'shaft-dot' : 'leg-dot')
+                  + (point.label ? ' leg-' + (point.polarity || point.role || '') : '');
+    dot.style.left = point.x + 'px';
+    dot.style.top  = point.y + 'px';
+    dot.dataset.leg = point.id;
+    dot.dataset.kind = point.kind;
+    dot.title = point.kind === 'shaft' ? 'Drive shaft'
+              : point.label ? 'Leg ' + point.label : 'Leg';
+    if (point.label) dot.innerHTML = `<span class="leg-label">${point.label}</span>`;
     dot.addEventListener('pointerdown', e => e.stopPropagation());
-    dot.addEventListener('click', e => { e.stopPropagation(); onLegClick(part.id, leg.id); });
+    dot.addEventListener('click', e => { e.stopPropagation(); onNodeClick(part.id, point.id); });
     node.appendChild(dot);
   }
 
   // A readable value badge on the parts that have one.
-  if (spec.values || spec.variable) {
+  if (spec.values || spec.slider) {
     const badge = document.createElement('div');
     badge.className = 'part-value';
     node.appendChild(badge);
   }
 
-  // The dial gets a slider you can drag.
-  if (spec.variable) {
+  // Some parts have something to slide: the dial's resistance, the
+  // sun on the solar panel, the arm length of the lever.
+  if (spec.slider) {
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.className = 'pot-slider';
-    slider.min = spec.minR; slider.max = spec.maxR; slider.step = 50;
-    slider.value = part.state.resistance;
+    slider.min = spec.slider.min; slider.max = spec.slider.max; slider.step = spec.slider.step;
+    slider.value = part.state[spec.slider.prop];
     slider.addEventListener('pointerdown', e => e.stopPropagation());
     slider.addEventListener('input', () => {
-      part.state.resistance = Number(slider.value);
+      part.state[spec.slider.prop] = Number(slider.value);
       save();
     });
     node.appendChild(slider);
@@ -268,13 +306,16 @@ function attachDragAndPress(node, part, spec) {
   node.addEventListener('pointercancel', release);
 }
 
-/* Which of this part's legs is closest to where the finger landed? */
-function nearestLeg(part, point) {
-  const legs = PARTS[part.type].legs;
-  let best = legs[0], bestDist = Infinity;
-  for (const leg of legs) {
-    const d = Math.hypot(part.x + leg.x - point.x, part.y + leg.y - point.y);
-    if (d < bestDist) { bestDist = d; best = leg; }
+/* Which of this part's connection points is closest to where the
+   finger landed? Only points of the right kind count — tapping a
+   gear while holding a wire should not find its shaft. */
+function nearestNode(part, point, kind) {
+  const candidates = nodesOf(part.type).filter(n => n.kind === kind);
+  if (!candidates.length) return null;
+  let best = candidates[0], bestDist = Infinity;
+  for (const node of candidates) {
+    const d = Math.hypot(part.x + node.x - point.x, part.y + node.y - point.y);
+    if (d < bestDist) { bestDist = d; best = node; }
   }
   return best;
 }
@@ -289,7 +330,17 @@ function onPartClick(part, spec, tapAt) {
       refreshLegHighlights();
       return;
     }
-    onLegClick(part.id, nearestLeg(part, tapAt || { x: part.x, y: part.y }).id);
+    const want = kindOfNode(state.armedLeg);
+    const target = nearestNode(part, tapAt || { x: part.x, y: part.y }, want);
+    if (!target) {
+      flashStatus(want === 'shaft'
+        ? PARTS[part.type].name + ' has no drive shaft to link to.'
+        : PARTS[part.type].name + ' has no legs to wire to.');
+      state.armedLeg = null;
+      refreshLegHighlights();
+      return;
+    }
+    onNodeClick(part.id, target.id);
     return;
   }
 
@@ -297,8 +348,14 @@ function onPartClick(part, spec, tapAt) {
     part.state.closed = !part.state.closed;
   } else if (spec.values) {
     part.state.valueIndex = (part.state.valueIndex + 1) % spec.values.length;
-    part.state.resistance = spec.values[part.state.valueIndex];
-    flashStatus('Resistor set to ' + formatOhms(part.state.resistance) + '.');
+    const value = spec.values[part.state.valueIndex];
+    if (spec.capacitor) {
+      part.state.capacitance = value;
+      flashStatus('Capacitor set to ' + value + ' µF — bigger stores more.');
+    } else {
+      part.state.resistance = value;
+      flashStatus('Resistor set to ' + formatOhms(value) + '.');
+    }
   } else {
     flashStatus(spec.name + ': ' + spec.blurb);
   }
@@ -312,8 +369,9 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 function legPosition(partId, legId) {
   const part = state.parts.find(p => p.id === partId);
   if (!part) return null;
-  const leg = PARTS[part.type].legs.find(l => l.id === legId);
-  return { x: part.x + leg.x, y: part.y + leg.y };
+  const node = nodeOf(part.type, legId);
+  if (!node) return null;
+  return { x: part.x + node.x, y: part.y + node.y };
 }
 
 /* Wires get built once, when one is added or removed. After that
@@ -362,8 +420,18 @@ function drawWires(liveParts) {
     els.hit.setAttribute('d', d);
     els.line.setAttribute('d', d);
 
-    const live = !!liveParts && liveParts.has(wire.from.partId) && liveParts.has(wire.to.partId);
-    els.line.classList.toggle('wire-live', live);
+    const drive = wire.kind === 'drive';
+    els.line.classList.toggle('wire-drive', drive);
+    if (drive) {
+      // A drive link glows while it is actually transmitting turning.
+      const turning = state.lastSim
+        && (state.lastSim.partState[wire.from.partId] || {}).rpm > 0
+        && (state.lastSim.partState[wire.to.partId]   || {}).driven;
+      els.line.classList.toggle('wire-turning', !!turning);
+    } else {
+      const live = !!liveParts && liveParts.has(wire.from.partId) && liveParts.has(wire.to.partId);
+      els.line.classList.toggle('wire-live', live);
+    }
   }
 }
 
@@ -390,8 +458,19 @@ function refreshLegHighlights() {
    The heartbeat: simulate, then show the result
    ============================================================ */
 
+let lastFrame = performance.now();
+
 function tick() {
-  const sim = simulate(state.parts, state.wires);
+  // Capacitors fill and empty over time, so the simulation needs to
+  // know how long the last frame took. Capped so that switching back
+  // to the tab does not dump a huge jump into it.
+  const now = performance.now();
+  const dt = Math.min((now - lastFrame) / 1000, 0.05);
+  lastFrame = now;
+
+  const sim = simulate(state.parts, state.wires, dt);
+  simulateMechanics(state.parts, state.wires, sim);
+  state.lastSim = sim;
   observe(state.memory, state.parts, sim);
   paint(sim);
   updateReadout(sim);
@@ -431,27 +510,72 @@ function paint(sim) {
     if (part.type === 'button') {
       node.classList.toggle('pressed', part.state.pressed);
     }
-    if (part.type === 'motor') {
-      node.classList.toggle('spinning', st.spinning > 0);
-      // Faster current, faster spin: 1.2s at a crawl down to 0.15s flat out.
-      node.style.setProperty('--spin', (1.2 - st.spinning * 1.05).toFixed(2) + 's');
+    if (part.type === 'bulb') {
+      node.style.setProperty('--glow', st.brightness.toFixed(3));
+      node.classList.toggle('lit', st.brightness > 0.05);
     }
     if (part.type === 'buzzer') {
       node.classList.toggle('sounding', st.sounding);
     }
+    if (part.type === 'fan') {
+      node.classList.toggle('spinning', st.blowing > 0);
+      node.style.setProperty('--spin', (0.9 - st.blowing * 0.78).toFixed(2) + 's');
+    }
+    if (part.type === 'solar') {
+      node.style.setProperty('--sun', (part.state.sun / 100).toFixed(2));
+    }
+    if (PARTS[part.type].capacitor) {
+      node.style.setProperty('--fill', (st.fill || 0).toFixed(3));
+      node.classList.toggle('charged', (st.charge || 0) > 0.5);
+    }
+
+    /* Anything that turns — the motor, gears, pulleys, wheels — is
+       animated at its own speed and in its own direction. One
+       revolution takes 60/rpm seconds. */
+    if (part.type === 'motor' || PARTS[part.type].mechanical) {
+      const rpm = Math.max(st.rpm, 0);
+      const turning = rpm > 0.5;
+      node.classList.toggle('spinning', turning);
+      node.classList.toggle('moving', turning || (st.linear || 0) > 0.05);
+      if (turning) {
+        node.style.setProperty('--spin', Math.max(0.12, 60 / rpm).toFixed(2) + 's');
+        node.style.setProperty('--spin-dir', st.direction < 0 ? 'reverse' : 'normal');
+      }
+      // A rack and a lever slide and rock rather than spin round.
+      if ((st.linear || 0) > 0.05) {
+        node.style.setProperty('--slide', Math.max(0.25, 6 / st.linear).toFixed(2) + 's');
+      }
+    }
 
     const badge = node.querySelector('.part-value');
-    if (badge) badge.textContent = formatOhms(part.state.resistance);
+    if (badge) badge.textContent = valueLabel(part);
   }
 
   drawWires(liveParts);
 }
 
+/* The little badge on a part: whatever number matters for it. */
+function valueLabel(part) {
+  const spec = PARTS[part.type];
+  if (spec.capacitor) return part.state.capacitance + ' µF';
+  if (part.type === 'solar') return part.state.sun + '%';
+  if (spec.mechanical === 'lever') return part.state.arm + ' cm';
+  if (spec.mechanical === 'gear') return spec.teeth + 'T';
+  if (spec.slider && spec.slider.prop === 'resistance') return formatOhms(part.state.resistance);
+  if (spec.values) return formatOhms(part.state.resistance);
+  return '';
+}
+
 function updateReadout(sim) {
   const rows = [];
-  const battery = state.parts.find(p => p.type === 'battery');
+  const supply = state.parts.find(p => PARTS[p.type].source);
 
-  if (battery) rows.push(['Battery', '9 V']);
+  if (supply) {
+    rows.push([PARTS[supply.type].name,
+      supply.type === 'solar'
+        ? formatVolts(PARTS.solar.voltage * supply.state.sun / 100)
+        : '9 V']);
+  }
 
   const workingLoops = sim.loops.filter(l => l.blockedBy.length === 0 && l.current > 0);
   if (workingLoops.length) {
@@ -463,18 +587,57 @@ function updateReadout(sim) {
 
   for (const part of state.parts) {
     const st = sim.partState[part.id];
-    if (st.current > 0 && part.type !== 'battery') {
+    if (st.current > 0 && !PARTS[part.type].source) {
       rows.push([PARTS[part.type].name, formatCurrent(st.current)]);
+    }
+    if (PARTS[part.type].capacitor) {
+      rows.push(['Capacitor stored', formatVolts(st.charge || 0)]);
     }
   }
 
-  if (!rows.length) {
+  /* The mechanical side gets its own block, because rpm and turning
+     force are the whole point of adding gears. */
+  const mech = [];
+  const motor = state.parts.find(p => p.type === 'motor' && sim.partState[p.id].rpm > 0);
+  if (motor) mech.push(['Motor', formatRpm(sim.partState[motor.id].rpm)
+                                 + ' · ' + formatTorque(sim.partState[motor.id].torque)]);
+
+  for (const part of state.parts) {
+    const spec = PARTS[part.type];
+    const st = sim.partState[part.id];
+    if (!spec.mechanical || !st.driven) continue;
+
+    if (spec.mechanical === 'rack') {
+      mech.push([spec.name, formatSpeed(st.linear) + ' · ' + formatForce(st.force)]);
+    } else if (spec.mechanical === 'wheel') {
+      mech.push([spec.name, formatRpm(st.rpm) + ' · ' + formatSpeed(st.linear)]);
+    } else if (spec.mechanical === 'lever') {
+      mech.push([spec.name, formatForce(st.force) + ' at the tip']);
+    } else {
+      mech.push([spec.name, formatRpm(st.rpm) + ' · ' + formatTorque(st.torque)]);
+    }
+  }
+
+  // The overall gearing, which is the headline number.
+  const driven = state.parts.filter(p => PARTS[p.type].mechanical && sim.partState[p.id].driven);
+  if (driven.length && motor) {
+    const end = driven.reduce((a, b) =>
+      (sim.partState[b.id].ratio || 1) > (sim.partState[a.id].ratio || 1) ? b : a);
+    const ratio = sim.partState[end.id].ratio;
+    if (isFinite(ratio) && ratio > 0) mech.push(['Gear ratio', formatRatio(ratio)]);
+  }
+
+  if (!rows.length && !mech.length) {
     el.readoutBody.innerHTML = '<p class="muted">Nothing connected yet.</p>';
     return;
   }
-  el.readoutBody.innerHTML = rows
+
+  const render = list => list
     .map(([k, v]) => `<div class="readout-row"><span>${k}</span><strong>${v}</strong></div>`)
     .join('');
+
+  el.readoutBody.innerHTML = render(rows)
+    + (mech.length ? '<h4 class="readout-sub">Mechanical</h4>' + render(mech) : '');
 }
 
 let flashUntil = 0, flashMessage = '';
@@ -631,7 +794,16 @@ function load() {
     if (!raw) return;
     const data = JSON.parse(raw);
     state.parts = (data.parts || []).filter(p => PARTS[p.type]);
-    state.wires = data.wires || [];
+    state.wires = (data.wires || []).map(w => ({ ...w, kind: w.kind || 'wire' }));
+
+    // Fill in anything a save from an older version will not have.
+    for (const part of state.parts) {
+      const spec = PARTS[part.type];
+      part.state.charge      ??= 0;
+      part.state.sun         ??= 100;
+      part.state.arm         ??= spec.arm || 6;
+      part.state.capacitance ??= spec.capacitance || 0;
+    }
     state.nextId = data.nextId || (state.parts.length + state.wires.length + 1);
     state.completed = new Set(data.completed || []);
     state.soundOn = data.soundOn !== false;
@@ -652,20 +824,28 @@ function resetProgress() {
    ============================================================ */
 
 function buildPalette() {
-  for (const type of PALETTE_ORDER) {
-    const spec = PARTS[type];
-    const card = document.createElement('button');
-    card.className = 'palette-item';
-    card.innerHTML = `
-      <svg class="palette-art" viewBox="0 0 ${PART_W} ${PART_H}">${spec.art}</svg>
-      <span class="palette-name">${spec.name}</span>
-      <span class="palette-blurb">${spec.blurb}</span>`;
-    card.addEventListener('click', () => {
-      addPart(type);
-      // Get out of the way so the new part is visible straight away.
-      if (sheetMode()) closeSheets();
-    });
-    el.palette.appendChild(card);
+  // Twenty parts in one list is a wall. Grouping them keeps it findable.
+  for (const group of PALETTE_GROUPS) {
+    const heading = document.createElement('h3');
+    heading.className = 'palette-group';
+    heading.textContent = group.title;
+    el.palette.appendChild(heading);
+
+    for (const type of group.types) {
+      const spec = PARTS[type];
+      const card = document.createElement('button');
+      card.className = 'palette-item';
+      card.innerHTML = `
+        <svg class="palette-art" viewBox="0 0 ${PART_W} ${PART_H}">${spec.art}</svg>
+        <span class="palette-name">${spec.name}</span>
+        <span class="palette-blurb">${spec.blurb}</span>`;
+      card.addEventListener('click', () => {
+        addPart(type);
+        // Get out of the way so the new part is visible straight away.
+        if (sheetMode()) closeSheets();
+      });
+      el.palette.appendChild(card);
+    }
   }
 }
 

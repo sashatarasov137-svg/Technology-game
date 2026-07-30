@@ -1,11 +1,12 @@
 # ⚡ SparkLab
 
-A virtual electronics workbench that runs in a web browser. Drag out a battery, an LED,
-a resistor and a switch, wire them together, and watch the circuit come alive — so you
-can learn how electronics actually work before spending money on a real kit.
+A virtual electronics and mechanics workbench that runs in a web browser. Drag out a
+battery, an LED, a resistor and a switch, wire them together, and watch the circuit come
+alive — then bolt gears onto the motor and watch electricity turn into movement. All so
+you can learn how this stuff actually works before spending money on a real kit.
 
-Eight built-in challenges take you from "light a single LED" to running a motor, and they
-tick themselves off automatically as soon as your circuit works.
+Eighteen built-in challenges take you from "light a single LED" to building a gear train,
+and they tick themselves off automatically as soon as your build works.
 
 ---
 
@@ -20,19 +21,44 @@ your browser and works immediately. There is nothing to install and nothing to r
 
 ## What's in the box
 
+**Electrical**
+
 | Part | What it teaches |
 |---|---|
 | **Battery** | Every circuit needs a power source, and current must return to it |
+| **Solar panel** | Electricity can come from light. Slide the sun up and down |
 | **LED** | Polarity — it only works one way round |
-| **Resistor** | Why you can't wire an LED straight to a battery. Click it to change its value |
+| **Light bulb** | A filament lamp, which works either way round |
+| **Resistor** | Why you can't wire an LED straight to a battery. Tap it to change its value |
 | **Switch** | Opening a circuit stops everything |
 | **Push button** | Momentary contact — connected only while held |
 | **Dial** | More resistance means less current means a dimmer light |
+| **Capacitor** | Storing electricity, then giving it back after the power is cut |
 | **Buzzer** | Current can do more than make light (turn your sound on) |
-| **Motor** | Current can do work, and more current means more speed |
+| **Fan** | Current makes a draught |
+| **Motor** | Current becomes movement — and its shaft drives the mechanical parts |
 
-Your circuit and your progress are saved in your own browser, so you can close the tab
-and come back to it later.
+**Mechanical**
+
+| Part | What it teaches |
+|---|---|
+| **Gears** (small, medium, large) | Gear ratios: trading speed for turning force |
+| **Pulleys** (small, large) | Belt drive — sending turning across a gap, without reversing it |
+| **Rack** | Turning a rotation into a straight-line push |
+| **Wheel** | How fast a rolling wheel actually travels |
+| **Lever** | A long arm moves further; a short arm pushes harder |
+
+Your build and your progress are saved in your own browser, so you can close the tab and
+come back to it later.
+
+### Two kinds of connection
+
+Parts have **round** connection points and **square** ones, and they never join to each
+other — you cannot solder a wire onto a spinning axle.
+
+- **Round points are legs.** Joining two of them runs a wire, which carries electricity.
+- **Square points are shafts.** Joining two of them makes a drive link, which carries
+  turning. The motor has one on top; every mechanical part has one.
 
 ### On an iPad
 
@@ -62,10 +88,11 @@ and JavaScript, which is why it can be published for free and will still work in
 ```
 index.html          the page: a top bar, three panels, and a hidden help pop-up
 css/style.css       how everything looks. All colours are set once at the top
-js/parts.js         the parts catalogue: size, legs, resistance and drawing for each part
-js/circuit.js       the simulation — works out where electricity flows
-js/challenges.js    the eight lessons and the rules that mark them complete
-js/app.js           the glue: clicking, dragging, wiring, and drawing the screen
+js/parts.js         the parts catalogue: size, connection points and drawing for each part
+js/circuit.js       the electrical simulation — works out where current flows
+js/mechanics.js     the mechanical simulation — works out what turns, and how fast
+js/challenges.js    the eighteen lessons and the rules that mark them complete
+js/app.js           the glue: tapping, dragging, wiring, and drawing the screen
 ```
 
 **Read them in that order** if you want to understand the project. `js/circuit.js` is the
@@ -84,7 +111,32 @@ It comes down to three steps, and you can follow all three in `js/circuit.js`:
    fast a motor spins, and whether you get an overload warning.
 
 An LED wired backwards refuses to conduct, an open switch is treated as an infinite
-resistance, and a loop with almost no resistance is reported as a short circuit.
+resistance, and a loop with almost no resistance is reported as a short circuit. A
+capacitor pushes back against the source as it fills, which is why the current into it
+tails off, and when the source is cut off it becomes a source itself until it runs flat.
+
+### How the gears work
+
+Turning does not flow in loops, so `js/mechanics.js` searches differently: it starts at
+the motor and spreads outwards along the drive links, like a family tree.
+
+The one rule that matters is that **gearing is a trade, never a gain**. Every link that
+slows things down multiplies the turning force by exactly the same amount:
+
+| Link | Speed | Turning force |
+|---|---|---|
+| Gear meshes with gear | ÷ tooth ratio | × tooth ratio |
+| Belt between pulleys | ÷ radius ratio | × radius ratio |
+| Mounted on the same shaft | unchanged | unchanged |
+
+So an 8-tooth gear driving a 24-tooth one turns 3 times slower with 3 times the force —
+and the two meshed gears turn in opposite directions, while a belt keeps them the same
+way round. A rack converts the rim speed of the gear driving it into a straight-line
+speed, and a lever divides its turning force by the length of its arm.
+
+The tests check this directly: speed multiplied by force has to come out the same at the
+end of a gear chain as it was at the motor. If it ever did not, the app would be teaching
+that you can get something for nothing.
 
 ### Where it is deliberately simplified
 
@@ -98,6 +150,11 @@ the difference:
 - Nothing is ever permanently destroyed. Overload the LED and you get a warning and a
   flashing bulb — in real life you would be buying a new one.
 - The battery never goes flat and has no internal resistance.
+- Nothing mechanical has any weight, friction or springiness, so gears never slow the
+  motor down, never slip, and reach their speed instantly. In reality a heavy load would
+  drag a motor's speed down, which is half the reason you gear things down at all.
+- Only one power source can be on the bench at a time, so a battery and a solar panel
+  cannot be combined.
 
 ---
 
@@ -133,8 +190,9 @@ certificate for free.
 ## Changing things
 
 **Add a new part** — open `js/parts.js`, copy an existing entry, and give it a name,
-a resistance and a drawing. Then add its key to `PALETTE_ORDER` at the bottom of the file.
-It will appear in the drawer and work in the simulation straight away.
+a resistance and a drawing. Then add its key to the right group in `PALETTE_GROUPS` at
+the bottom of the file. It will appear in the drawer and work in the simulation straight
+away. Give it `legs` if it carries electricity and `shafts` if it carries turning.
 
 **Add a new challenge** — open `js/challenges.js` and add an entry to the `CHALLENGES`
 list with a `title`, a `brief`, a `hint`, and a `check` function that returns `true` when
@@ -155,11 +213,16 @@ npm install
 npm test
 ```
 
-This opens a real browser and runs 66 checks across two suites:
+This opens a real browser and runs 116 checks across three suites:
 
 - **`tests/circuit.test.js`** — 38 checks on the electronics: that Ohm's law gives the
   right current, that a backwards LED stays dark, that a short circuit is caught, that
-  each of the eight challenges unlocks correctly, and that your work survives a reload.
+  the first eight challenges unlock correctly, and that your work survives a reload.
+- **`tests/mechanics.test.js`** — 50 checks on the gears and the newer electrical parts:
+  that gear ratios come out exactly right in both directions, that meshed gears reverse
+  while belts do not, that speed times force is conserved through a chain, that a lever
+  with half the arm gives twice the force, that a solar panel gives nothing in the dark,
+  and that a capacitor charges up and then runs the light on its own.
 - **`tests/touch.test.js`** — 28 checks on an emulated iPad: that the bench really does
   fill the screen, that the sheets open and close, that tap targets meet Apple's 44-pixel
   minimum, that delete buttons appear without a hover, that the connect prompt never

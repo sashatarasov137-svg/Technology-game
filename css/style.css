@@ -110,6 +110,15 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 
 .palette { display: flex; flex-direction: column; gap: 8px; }
 
+.palette-group {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--accent);
+  margin: 10px 0 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.palette-group:first-child { margin-top: 0; }
+
 .palette-item {
   display: grid;
   grid-template-columns: 62px 1fr;
@@ -156,6 +165,10 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
   border-bottom: 1px dashed #1e2a3a;
 }
 .readout-row:last-child { border-bottom: 0; }
+.readout-sub {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--live); margin: 9px 0 3px;
+}
 .readout-row strong { font-variant-numeric: tabular-nums; color: var(--accent); }
 
 
@@ -252,6 +265,18 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
   stroke: var(--live);
   filter: drop-shadow(0 0 5px rgba(69, 214, 164, .55));
 }
+.wire-drive {
+  stroke: #8698ad;
+  stroke-width: 5;
+  stroke-dasharray: 10 7;
+}
+.wire-turning {
+  stroke: #d8e4f2;
+  filter: drop-shadow(0 0 5px rgba(216, 228, 242, .5));
+  animation: belt-run .55s linear infinite;
+}
+@keyframes belt-run { to { stroke-dashoffset: -17; } }
+
 .wire-hit {
   fill: none;
   stroke: transparent;
@@ -401,11 +426,99 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 .part-buzzer.sounding .w2 { animation: ping .7s ease-out .18s infinite; }
 @keyframes ping { 0% { opacity: 0; } 40% { opacity: 1; } 100% { opacity: 0; } }
 
-/* Motor: the rotor spins, and the speed comes from the current */
-.rotor { transform-box: view-box; transform-origin: 56px 30px; }
+/* Anything that turns: motor rotor, gears, pulleys, wheels, fan.
+   The speed and direction come from the simulation. */
+.rotor { transform-box: view-box; transform-origin: 56px 34px; }
+.part-buzzer .rotor, .part-fan .rotor, .part-pot .rotor { transform-origin: 56px 30px; }
 .rotor-blade { stroke: #9fb3cc; stroke-width: 3.5; stroke-linecap: round; }
-.part-motor.spinning .rotor { animation: spin var(--spin, .6s) linear infinite; }
+.part.spinning .rotor {
+  animation: spin var(--spin, .6s) linear infinite;
+  animation-direction: var(--spin-dir, normal);
+}
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- the new electrical parts ---- */
+
+/* Solar panel: the sun brightens with the slider */
+.solar-panel { fill: #16324f; stroke: #3d6d99; stroke-width: 2; }
+.solar-line  { stroke: #3d6d99; stroke-width: 1.5; }
+.sun-disc    { fill: #ffd166; opacity: calc(.15 + var(--sun, 1) * .85); }
+.part-solar .sun-rays { filter: drop-shadow(0 0 calc(var(--sun, 0) * 7px) rgba(255, 209, 102, .9)); }
+
+/* Filament bulb: glows warm white, and works either way round */
+.bulb-glass { fill: #223243; stroke: #55697f; stroke-width: 2; }
+.bulb-glow  { fill: #ffe9a8; opacity: var(--glow, 0); }
+.bulb-halo  { fill: #ffe9a8; opacity: calc(var(--glow, 0) * .16); }
+.filament   { fill: none; stroke: #8a6b3a; stroke-width: 2; stroke-linejoin: round; }
+.part-bulb.lit .filament { stroke: #fff6d8; }
+.part-bulb.lit .part-art { filter: drop-shadow(0 0 calc(var(--glow) * 15px) rgba(255, 226, 150, .85)); }
+
+/* Fan blades */
+.fan-blade { fill: #6f8399; }
+.part-fan.spinning .fan-blade { fill: #90a8c2; }
+
+/* Capacitor: fills up like a little tank as it charges */
+.cap-body   { fill: #1d2b3d; stroke: #55697f; stroke-width: 2; }
+.cap-fill   { fill: #45d6a4; opacity: calc(var(--fill, 0) * .75);
+              transform-box: fill-box; transform-origin: bottom;
+              transform: scaleY(var(--fill, 0)); }
+.cap-stripe { stroke: #8ba0bb; stroke-width: 3; stroke-linecap: round; }
+.part-capacitor.charged .part-art { filter: drop-shadow(0 0 7px rgba(69, 214, 164, .5)); }
+
+/* ---- mechanical parts ---- */
+
+.gear-body  { fill: #55677f; stroke: #7d90ab; stroke-width: 1.5; stroke-linejoin: round; }
+.gear-bore  { fill: var(--bg); stroke: #7d90ab; stroke-width: 2; }
+.gear-mark  { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.part.spinning .gear-body { fill: #64798f; }
+
+.pulley-rim    { fill: #55677f; stroke: #7d90ab; stroke-width: 2; }
+.pulley-groove { fill: none; stroke: #3a4a5e; stroke-width: 4; }
+
+.tyre  { fill: #2a3342; stroke: #59687d; stroke-width: 3; }
+.rim   { fill: #46566b; }
+.spoke { stroke: #8ea4bd; stroke-width: 2.5; stroke-linecap: round; }
+
+.rack-bar   { fill: #55677f; stroke: #7d90ab; stroke-width: 1.5; }
+.rack-tooth { fill: #6b7f97; }
+.part-rack.moving .rack-slide {
+  animation: rack-slide var(--slide, 1s) ease-in-out infinite alternate;
+}
+@keyframes rack-slide { from { transform: translateX(-9px); } to { transform: translateX(9px); } }
+.rack-slide { transform-box: view-box; }
+
+.lever-beam  { fill: #55677f; stroke: #7d90ab; stroke-width: 1.5; }
+.lever-tip   { fill: var(--accent); }
+.lever-pivot { fill: #46566b; stroke: #7d90ab; stroke-width: 1.5; }
+.lever-arm   { transform-box: view-box; transform-origin: 22px 44px; }
+.part-lever.moving .lever-arm {
+  animation: lever-rock var(--slide, 1s) ease-in-out infinite alternate;
+}
+@keyframes lever-rock { from { transform: rotate(-13deg); } to { transform: rotate(13deg); } }
+
+.shaft-stub { stroke: #b9c8db; stroke-width: 4; stroke-linecap: round; }
+
+/* Shaft connection points are square, so they never look like a leg. */
+.shaft-dot {
+  position: absolute;
+  width: 18px; height: 18px;
+  transform: translate(-50%, -50%);
+  border-radius: 4px;
+  border: 2px solid #9db2cc;
+  background: #1a2432;
+  padding: 0; cursor: pointer;
+  z-index: 3;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: border-color .15s, background .15s, transform .12s, box-shadow .15s;
+}
+.shaft-dot::after { content: ''; position: absolute; inset: -15px; border-radius: 8px; }
+.shaft-dot:hover { border-color: #fff; transform: translate(-50%, -50%) scale(1.25); }
+.shaft-dot.armed {
+  border-color: #fff; background: #9db2cc;
+  box-shadow: 0 0 0 5px rgba(157, 178, 204, .25);
+  animation: leg-pulse 1.3s ease-in-out infinite;
+}
 
 /* A part carrying current gets a subtle green edge */
 .part.is-live .part-art   { filter: drop-shadow(0 0 6px rgba(69, 214, 164, .35)); }
@@ -535,8 +648,8 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
   }
 
   /* Bigger, easier-to-hit legs. */
-  .leg-dot { width: 24px; height: 24px; border-width: 2.5px; }
-  .leg-dot::after { inset: -14px; }
+  .leg-dot, .shaft-dot { width: 24px; height: 24px; border-width: 2.5px; }
+  .leg-dot::after, .shaft-dot::after { inset: -14px; }
   .leg-label { font-size: 12px; }
 
   /* A fatter invisible wire, so tapping one to delete it is realistic. */
@@ -619,7 +732,12 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
     border-color: var(--accent);
     background: #2a2013;
   }
-  .bench.wiring .leg-dot.armed { transform: translate(-50%, -50%) scale(1.5); }
+  .bench.wiring .shaft-dot {
+    transform: translate(-50%, -50%) scale(1.3);
+    border-color: #fff;
+  }
+  .bench.wiring .leg-dot.armed,
+  .bench.wiring .shaft-dot.armed { transform: translate(-50%, -50%) scale(1.5); }
 }
 
 /* Tablets: lose the strapline, keep every button label. */

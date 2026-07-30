@@ -145,5 +145,95 @@ const CHALLENGES = [
     brief: 'Make the motor turn.',
     hint: 'A motor needs a decent amount of current. Wire it straight into the loop — a big resistor will starve it and it will sit still.',
     check: (parts, sim) => parts.some(p => p.type === 'motor' && sim.partState[p.id].spinning > 0)
+  },
+
+  /* ---- more electrical ---- */
+
+  {
+    id: 'light-the-lamp',
+    title: 'Light the lamp',
+    brief: 'Get the filament bulb glowing.',
+    hint: 'Unlike an LED, a bulb has no + or − leg, so it works either way round. It also has enough resistance of its own that it will not burn out.',
+    check: (parts, sim) => parts.some(p => p.type === 'bulb' && sim.partState[p.id].brightness > 0.05)
+  },
+  {
+    id: 'sun-power',
+    title: 'Power from the sun',
+    brief: 'Run a light from the solar panel instead of a battery.',
+    hint: 'Remove the battery first — one power source at a time. Then wire the solar panel up like a battery and slide the sun up.',
+    check: (parts, sim) => {
+      const solar = parts.find(p => p.type === 'solar');
+      if (!solar || !sim.powered) return false;
+      return parts.some(p => (p.type === 'led' || p.type === 'bulb')
+                             && sim.partState[p.id].brightness > 0.05);
+    }
+  },
+  {
+    id: 'store-it',
+    title: 'Store it up',
+    brief: 'Charge a capacitor, then let it keep a light on by itself.',
+    hint: 'Wire a switch, then a capacitor across the light. Close the switch to fill the capacitor, then open it — the light fades instead of going straight out.',
+    check: (parts, sim) => sim.runningOnCapacitor
+      && parts.some(p => (p.type === 'led' || p.type === 'bulb')
+                         && sim.partState[p.id].brightness > 0.05)
+  },
+
+  /* ---- mechanical ---- */
+
+  {
+    id: 'get-turning',
+    title: 'Get it turning',
+    brief: 'Use the motor to drive a gear.',
+    hint: 'The motor has a square drive shaft on top. Tap it, then tap a gear — square points link to square points, never to wires.',
+    check: (parts, sim) => parts.some(p => PARTS[p.type].mechanical && sim.partState[p.id].rpm > 0)
+  },
+  {
+    id: 'gear-down',
+    title: 'Gear down for power',
+    brief: 'Build a gear chain that turns at least 2 times slower than the motor.',
+    hint: 'Drive a small gear from the motor and mesh it into a large one. The big gear turns slower but with much more force — check the gear ratio in the readout.',
+    check: (parts, sim) => parts.some(p => PARTS[p.type].mechanical
+      && sim.partState[p.id].driven && sim.partState[p.id].ratio >= 2)
+  },
+  {
+    id: 'gear-up',
+    title: 'Gear up for speed',
+    brief: 'Now do the opposite — make something spin faster than the motor.',
+    hint: 'Turn the chain around: drive the large gear from the motor and mesh it into a small one. You gain speed but lose turning force.',
+    check: (parts, sim) => parts.some(p => PARTS[p.type].mechanical
+      && sim.partState[p.id].driven && sim.partState[p.id].ratio > 0
+      && sim.partState[p.id].ratio <= 0.6)
+  },
+  {
+    id: 'belt-drive',
+    title: 'Belt drive',
+    brief: 'Send the turning across a belt between two pulleys.',
+    hint: 'Link two pulleys shaft to shaft and a belt runs between them. Unlike meshed gears, both pulleys turn the same way.',
+    check: (parts, sim) => parts.some(p => PARTS[p.type].mechanical === 'pulley'
+      && sim.partState[p.id].linkKind === 'belt' && sim.partState[p.id].rpm > 0)
+  },
+  {
+    id: 'straight-line',
+    title: 'Round into straight',
+    brief: 'Drive the rack so it slides along.',
+    hint: 'Link a gear to the rack. Spinning becomes straight-line pushing — the same trick that steers a car.',
+    check: (parts, sim) => parts.some(p => PARTS[p.type].mechanical === 'rack'
+      && sim.partState[p.id].linear > 0.1)
+  },
+  {
+    id: 'roll-on',
+    title: 'Get rolling',
+    brief: 'Drive a wheel and see how fast it would travel.',
+    hint: 'Link a wheel onto your gear chain. The readout shows how many centimetres a second the rim would cover.',
+    check: (parts, sim) => parts.some(p => PARTS[p.type].mechanical === 'wheel'
+      && sim.partState[p.id].rpm > 0)
+  },
+  {
+    id: 'lever-lift',
+    title: 'Lever it up',
+    brief: 'Drive a lever and get more than 0.4 N of force at its tip.',
+    hint: 'Gear down first — more turning force means more push. Then shorten the lever arm with its slider, because a shorter arm concentrates the force.',
+    check: (parts, sim) => parts.some(p => PARTS[p.type].mechanical === 'lever'
+      && sim.partState[p.id].driven && sim.partState[p.id].force > 0.4)
   }
 ];
