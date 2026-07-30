@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SparkLab — Learn electronics without buying a kit</title>
+  <meta name="description" content="A free virtual electronics workbench. Build real circuits with a battery, LEDs, resistors, switches and motors right in your browser.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-bolt">⚡</span>
+      <h1>SparkLab</h1>
+      <span class="brand-tag">virtual electronics workbench</span>
+    </div>
+    <div class="topbar-actions">
+      <button id="soundToggle" class="btn btn-ghost" title="Turn sound on or off">🔊 Sound</button>
+      <button id="clearBtn" class="btn btn-ghost" title="Remove everything from the workbench">Clear bench</button>
+      <button id="helpBtn" class="btn btn-ghost">How to use</button>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <!-- LEFT: the parts drawer -->
+    <aside class="panel panel-parts">
+      <h2 class="panel-title">Parts</h2>
+      <p class="panel-hint">Click a part to drop it on the bench.</p>
+      <div id="palette" class="palette"><!-- filled in by JavaScript --></div>
+
+      <div class="readout" id="readout">
+        <h3>Circuit readout</h3>
+        <div class="readout-body" id="readoutBody">
+          <p class="muted">Nothing connected yet.</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MIDDLE: the workbench -->
+    <section class="bench-wrap">
+      <div id="bench" class="bench">
+        <svg id="wireLayer" class="wire-layer"><!-- wires are drawn here --></svg>
+        <div id="partsLayer" class="parts-layer"><!-- parts live here --></div>
+        <div id="benchEmpty" class="bench-empty">
+          <p><strong>Your bench is empty.</strong></p>
+          <p>Click a part on the left to add it, then click the small circles on two parts to run a wire between them.</p>
+        </div>
+      </div>
+      <div id="statusBar" class="status-bar">
+        <span id="statusText">Add a battery to get started.</span>
+      </div>
+    </section>
+
+    <!-- RIGHT: challenges -->
+    <aside class="panel panel-challenges">
+      <h2 class="panel-title">Challenges</h2>
+      <p class="panel-hint">They tick themselves off as soon as your circuit works.</p>
+      <ol id="challengeList" class="challenge-list"><!-- filled in by JavaScript --></ol>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+        <span id="progressText" class="progress-text">0 of 8 complete</span>
+        <button id="resetProgressBtn" class="reset-link">Reset progress</button>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- The "How to use" pop-up. Hidden until the button is clicked. -->
+  <div id="helpModal" class="modal hidden">
+    <div class="modal-card">
+      <button id="helpClose" class="modal-close" aria-label="Close">&times;</button>
+      <h2>How to use SparkLab</h2>
+      <ol class="help-steps">
+        <li><strong>Add parts.</strong> Click anything in the Parts drawer on the left and it appears on the bench.</li>
+        <li><strong>Move them.</strong> Drag a part around to tidy up your layout.</li>
+        <li><strong>Wire them up.</strong> Every part has a small circle on each side — these are its legs. Click one circle, then click another, and a wire connects them.</li>
+        <li><strong>Make a loop.</strong> Electricity only flows in a complete circle: out of the battery's <strong>+</strong>, through your parts, and back into the battery's <strong>−</strong>. No loop, nothing happens.</li>
+        <li><strong>Mind the LED.</strong> An LED only works one way round. Its <strong>+</strong> leg must face the battery's <strong>+</strong>.</li>
+        <li><strong>Always use a resistor.</strong> An LED wired straight to a battery gets far too much current and would burn out in real life. SparkLab warns you instead of letting it die.</li>
+      </ol>
+      <p class="help-foot">Delete a part with the <strong>&times;</strong> that appears when you hover over it. Delete a wire by clicking it.</p>
+    </div>
+  </div>
+
+  <!-- Order matters: each file uses things defined in the ones above it. -->
+  <script src="js/parts.js"></script>
+  <script src="js/circuit.js"></script>
+  <script src="js/challenges.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
