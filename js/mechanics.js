@@ -179,14 +179,31 @@ function addMechanicalMessages(parts, result, reached) {
     return;
   }
 
-  // Report the most interesting thing: the overall gearing.
+  /* Report the end of the chain. This is the only place the
+     mechanical numbers appear, so it carries the real figures
+     rather than just saying that something is turning. */
   const end = driven.reduce((a, b) =>
     (result.partState[b.id].ratio || 1) > (result.partState[a.id].ratio || 1) ? b : a);
-  const ratio = result.partState[end.id].ratio;
 
-  if (ratio > 1.05) {
-    result.issues.push({ level: 'good', text: `Geared down ${formatRatio(ratio)} — ${formatRatio(ratio)} slower than the motor, but ${formatRatio(ratio)} more turning force.` });
-  } else if (ratio < 0.95 && ratio > 0) {
-    result.issues.push({ level: 'good', text: `Geared up ${formatRatio(ratio)} — faster than the motor, but with less turning force.` });
-  }
+  const st = result.partState[end.id];
+  const spec = PARTS[end.type];
+  const ratio = st.ratio;
+  const motorSt = result.partState[motor.id];
+
+  let detail;
+  if (spec.mechanical === 'rack')       detail = `${spec.name} ${formatSpeed(st.linear)} · ${formatForce(st.force)}`;
+  else if (spec.mechanical === 'wheel') detail = `${spec.name} ${formatRpm(st.rpm)} · ${formatSpeed(st.linear)}`;
+  else if (spec.mechanical === 'lever') detail = `${spec.name} ${formatForce(st.force)} at the tip`;
+  else                                  detail = `${spec.name} ${formatRpm(st.rpm)} · ${formatTorque(st.torque)}`;
+
+  let head;
+  if (ratio > 1.05)                   head = `Geared down ${formatRatio(ratio)}`;
+  else if (ratio < 0.95 && ratio > 0) head = `Geared up ${formatRatio(ratio)}`;
+  else                                head = 'Driving straight through';
+
+  result.issues.push({
+    level: 'good',
+    mech: true,
+    text: `${head} — ${detail}. Motor ${formatRpm(motorSt.rpm)} · ${formatTorque(motorSt.torque)}.`
+  });
 }

@@ -191,7 +191,7 @@ const CHALLENGES = [
     id: 'gear-down',
     title: 'Gear down for power',
     brief: 'Build a gear chain that turns at least 2 times slower than the motor.',
-    hint: 'Drive a small gear from the motor and mesh it into a large one. The big gear turns slower but with much more force — check the gear ratio in the readout.',
+    hint: 'Drive a small gear from the motor and mesh it into a large one. The big gear turns slower but with much more force — the bar along the bottom tells you the ratio.',
     check: (parts, sim) => parts.some(p => PARTS[p.type].mechanical
       && sim.partState[p.id].driven && sim.partState[p.id].ratio >= 2)
   },
@@ -224,7 +224,7 @@ const CHALLENGES = [
     id: 'roll-on',
     title: 'Get rolling',
     brief: 'Drive a wheel and see how fast it would travel.',
-    hint: 'Link a wheel onto your gear chain. The readout shows how many centimetres a second the rim would cover.',
+    hint: 'Link a wheel onto the end of your gear chain and it rolls along with it.',
     check: (parts, sim) => parts.some(p => PARTS[p.type].mechanical === 'wheel'
       && sim.partState[p.id].rpm > 0)
   },

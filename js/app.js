@@ -29,7 +29,6 @@ const el = {
   palette:     document.getElementById('palette'),
   statusText:  document.getElementById('statusText'),
   statusBar:   document.getElementById('statusBar'),
-  readoutBody: document.getElementById('readoutBody'),
   challengeList: document.getElementById('challengeList'),
   progressFill:  document.getElementById('progressFill'),
   progressText:  document.getElementById('progressText')
@@ -473,7 +472,6 @@ function tick() {
   state.lastSim = sim;
   observe(state.memory, state.parts, sim);
   paint(sim);
-  updateReadout(sim);
   updateStatus(sim);
   updateChallenges(sim);
   updateSound(sim);
@@ -566,80 +564,6 @@ function valueLabel(part) {
   return '';
 }
 
-function updateReadout(sim) {
-  const rows = [];
-  const supply = state.parts.find(p => PARTS[p.type].source);
-
-  if (supply) {
-    rows.push([PARTS[supply.type].name,
-      supply.type === 'solar'
-        ? formatVolts(PARTS.solar.voltage * supply.state.sun / 100)
-        : '9 V']);
-  }
-
-  const workingLoops = sim.loops.filter(l => l.blockedBy.length === 0 && l.current > 0);
-  if (workingLoops.length) {
-    rows.push(['Complete loops', String(workingLoops.length)]);
-    const strongest = workingLoops.reduce((a, b) => a.current > b.current ? a : b);
-    rows.push(['Loop resistance', formatOhms(strongest.resistance)]);
-    rows.push(['Current', formatCurrent(strongest.current)]);
-  }
-
-  for (const part of state.parts) {
-    const st = sim.partState[part.id];
-    if (st.current > 0 && !PARTS[part.type].source) {
-      rows.push([PARTS[part.type].name, formatCurrent(st.current)]);
-    }
-    if (PARTS[part.type].capacitor) {
-      rows.push(['Capacitor stored', formatVolts(st.charge || 0)]);
-    }
-  }
-
-  /* The mechanical side gets its own block, because rpm and turning
-     force are the whole point of adding gears. */
-  const mech = [];
-  const motor = state.parts.find(p => p.type === 'motor' && sim.partState[p.id].rpm > 0);
-  if (motor) mech.push(['Motor', formatRpm(sim.partState[motor.id].rpm)
-                                 + ' · ' + formatTorque(sim.partState[motor.id].torque)]);
-
-  for (const part of state.parts) {
-    const spec = PARTS[part.type];
-    const st = sim.partState[part.id];
-    if (!spec.mechanical || !st.driven) continue;
-
-    if (spec.mechanical === 'rack') {
-      mech.push([spec.name, formatSpeed(st.linear) + ' · ' + formatForce(st.force)]);
-    } else if (spec.mechanical === 'wheel') {
-      mech.push([spec.name, formatRpm(st.rpm) + ' · ' + formatSpeed(st.linear)]);
-    } else if (spec.mechanical === 'lever') {
-      mech.push([spec.name, formatForce(st.force) + ' at the tip']);
-    } else {
-      mech.push([spec.name, formatRpm(st.rpm) + ' · ' + formatTorque(st.torque)]);
-    }
-  }
-
-  // The overall gearing, which is the headline number.
-  const driven = state.parts.filter(p => PARTS[p.type].mechanical && sim.partState[p.id].driven);
-  if (driven.length && motor) {
-    const end = driven.reduce((a, b) =>
-      (sim.partState[b.id].ratio || 1) > (sim.partState[a.id].ratio || 1) ? b : a);
-    const ratio = sim.partState[end.id].ratio;
-    if (isFinite(ratio) && ratio > 0) mech.push(['Gear ratio', formatRatio(ratio)]);
-  }
-
-  if (!rows.length && !mech.length) {
-    el.readoutBody.innerHTML = '<p class="muted">Nothing connected yet.</p>';
-    return;
-  }
-
-  const render = list => list
-    .map(([k, v]) => `<div class="readout-row"><span>${k}</span><strong>${v}</strong></div>`)
-    .join('');
-
-  el.readoutBody.innerHTML = render(rows)
-    + (mech.length ? '<h4 class="readout-sub">Mechanical</h4>' + render(mech) : '');
-}
-
 let flashUntil = 0, flashMessage = '';
 
 function flashStatus(text) {
@@ -650,7 +574,10 @@ function flashStatus(text) {
 function updateStatus(sim) {
   // Show the most serious thing first: danger, then warning, etc.
   const order = { danger: 0, warn: 1, info: 2, good: 3 };
-  const issue = [...sim.issues].sort((a, b) => order[a.level] - order[b.level])[0];
+  // Among equally important messages, the mechanical one wins: it is
+  // the only place the gear ratio and rpm are reported.
+  const issue = [...sim.issues].sort((a, b) =>
+    (order[a.level] - order[b.level]) || ((b.mech ? 1 : 0) - (a.mech ? 1 : 0)))[0];
 
   // A congratulation must never bury a warning that something is
   // burning out — the danger always wins.

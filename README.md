@@ -60,6 +60,10 @@ other — you cannot solder a wire onto a spinning axle.
 - **Square points are shafts.** Joining two of them makes a drive link, which carries
   turning. The motor has one on top; every mechanical part has one.
 
+The bar along the bottom of the screen is where the numbers appear: what is lit or
+turning, any warnings, and — once you build a gear chain — the gear ratio along with the
+speed and turning force at the end of it.
+
 ### On an iPad
 
 SparkLab is built for touch as well as mouse, and on a tablet the layout changes to suit it.
