@@ -87,6 +87,22 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
   height: calc(100% - 58px);
 }
 
+/* The Builds panel slides in over the parts drawer. It is taken out
+   of the grid entirely and positioned instead — given a grid column
+   it would be placed before the auto-placed panels and shunt the
+   whole layout one column to the right. */
+.panel-builds {
+  position: fixed;
+  top: 58px; bottom: 0; left: 0;
+  width: 290px;
+  border-right: 1px solid var(--line);
+  transform: translateX(-102%);
+  transition: transform .26s cubic-bezier(.2, .8, .3, 1);
+  box-shadow: 0 0 40px rgba(0, 0, 0, .5);
+  z-index: 40;
+}
+.panel-builds.open { transform: translateX(0); }
+
 .panel {
   background: var(--panel);
   padding: 16px;
@@ -138,9 +154,50 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 .palette-item:hover  { border-color: var(--accent); background: #202c3c; }
 .palette-item:active { transform: translateY(1px); }
 
+.palette-item { position: relative; }
+.palette-info {
+  position: absolute; top: 6px; right: 6px;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--bg-deep);
+  color: var(--muted);
+  font-size: 13px; font-weight: 700;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.palette-info:hover { color: var(--accent); border-color: var(--accent); background: #2a2013; }
+
 .palette-art  { grid-row: 1 / 3; width: 62px; height: 38px; }
 .palette-name { font-weight: 600; font-size: 14px; }
 .palette-blurb{ font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+
+
+/* ---------- the builds panel ------------------------------ */
+
+.build-list { display: flex; flex-direction: column; gap: 8px; }
+
+.build-item {
+  display: flex; flex-direction: column; gap: 3px;
+  text-align: left;
+  padding: 11px 13px;
+  background: var(--panel-hi);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .08s;
+}
+.build-item:hover  { background: #202c3c; border-color: var(--accent); }
+.build-item:active { transform: translateY(1px); }
+.build-name  { font-weight: 600; font-size: 14px; }
+.build-blurb { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+
+.build-puzzle { border-left-color: #d97757; }
+.build-puzzle.solved { border-left-color: var(--live); opacity: .72; }
+.build-puzzle.solved .build-name { color: var(--live); }
 
 
 /* ---------- the bench ------------------------------------- */
@@ -491,6 +548,39 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
   animation: leg-pulse 1.3s ease-in-out infinite;
 }
 
+/* ---- the buggy ---- */
+
+.buggy-body  { fill: #3c5a7a; stroke: #6f8fb3; stroke-width: 1.5; }
+.buggy-cab   { fill: #294055; stroke: #6f8fb3; stroke-width: 1.5; }
+.buggy-wheel { transform-box: view-box; }
+.wheel-front { transform-origin: 74px 46px; }
+.wheel-rear  { transform-origin: 38px 46px; }
+.buggy-ground {
+  stroke: #55677f; stroke-width: 3; stroke-linecap: round;
+  stroke-dasharray: 14 10;
+}
+
+/* The whole scene tips over when the hill goes up. */
+.buggy-scene {
+  transform-box: view-box; transform-origin: 56px 58px;
+  transition: transform .3s ease-out;
+}
+.part-buggy.on-hill .buggy-scene { transform: rotate(-14deg); }
+
+/* Rolling: the wheels turn and the ground streams past. */
+.part-buggy.rolling .buggy-wheel {
+  animation: spin var(--roll, .6s) linear infinite;
+}
+.part-buggy.rolling .buggy-ground {
+  animation: ground-run var(--roll, .6s) linear infinite;
+}
+@keyframes ground-run { to { stroke-dashoffset: -24; } }
+
+/* Stalled: it shudders and the wheels stay put. */
+.part-buggy.stalled .buggy-body { fill: #6b3a3a; }
+.part-buggy.stalled .buggy-scene { animation: judder .18s ease-in-out infinite alternate; }
+@keyframes judder { to { transform: rotate(-14deg) translateX(1.5px); } }
+
 /* A part carrying current gets a subtle green edge */
 .part.is-live .part-art   { filter: drop-shadow(0 0 6px rgba(69, 214, 164, .35)); }
 .part.is-reversed .part-art { filter: drop-shadow(0 0 7px rgba(255, 196, 77, .8)); }
@@ -597,6 +687,27 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
   font-size: 26px; line-height: 1; cursor: pointer;
 }
 .modal-close:hover { color: var(--text); }
+.modal-small { max-width: 420px; }
+.confirm-text { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+.confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.btn-primary { background: #1f6feb; border-color: #1f6feb; color: #fff; font-weight: 600; }
+.btn-primary:hover { background: #3b82f6; border-color: #3b82f6; }
+
+.lesson-head { display: flex; gap: 16px; align-items: center; margin-bottom: 20px; }
+.lesson-art {
+  flex: none; width: 96px; height: 58px;
+  background: var(--bg-deep);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 4px;
+}
+.lesson-blurb { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+.lesson-sub {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .09em;
+  color: var(--accent); margin-bottom: 8px;
+}
+.lesson-body { margin: 0; font-size: 14.5px; line-height: 1.65; }
+
 .help-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 9px; font-size: 14px; }
 .help-steps strong { color: var(--accent); }
 .help-foot { margin-top: 16px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
@@ -642,6 +753,7 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 
 @media (pointer: fine) and (min-width: 901px) and (max-width: 1400px) {
   .layout { grid-template-columns: 244px 1fr 272px; }
+  .panel-builds { width: 244px; }
   .palette-item { grid-template-columns: 50px 1fr; padding: 8px 9px; }
   .palette-art { width: 50px; height: 32px; }
   .palette-blurb { font-size: 11px; }
@@ -671,6 +783,7 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
     padding-top: 46px;                    /* room for the close button */
   }
   .panel-parts      { left: 0;  transform: translateX(-102%); border-right: 1px solid var(--line); }
+  .panel-builds     { left: 0;  transform: translateX(-102%); border-right: 1px solid var(--line); }
   .panel-challenges { right: 0; transform: translateX(102%);  border-left:  1px solid var(--line); }
   .panel.open       { transform: translateX(0); }
 
@@ -711,11 +824,13 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
   .bench.wiring .shaft-dot.armed { transform: translate(-50%, -50%) scale(1.5); }
 }
 
-/* Tablets: lose the strapline, keep every button label. */
-@media (max-width: 1000px) {
+/* Tablets: lose the strapline, and shrink the secondary buttons to
+   their icons so the three sheet buttons keep their labels. */
+@media (max-width: 1150px) {
   .brand-tag { display: none; }
   .topbar { padding: 0 12px; gap: 10px; }
   .topbar-actions { gap: 6px; }
+  .btn-ghost .btn-word { display: none; }
 }
 
 /* Phones: only now fall back to icons, because there is no room. */

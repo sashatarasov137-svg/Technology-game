@@ -18,6 +18,7 @@
     </div>
     <div class="topbar-actions">
       <button id="partsBtn" class="btn btn-sheet sheet-toggle">🧰 <span class="btn-word">Parts</span></button>
+      <button id="buildsBtn" class="btn btn-sheet sheet-toggle">📐 <span class="btn-word">Builds</span></button>
       <button id="challengesBtn" class="btn btn-sheet sheet-toggle">🎯 <span class="btn-word">Challenges</span></button>
       <button id="soundToggle" class="btn btn-ghost" title="Turn sound on or off">🔊 <span class="btn-word">Sound</span></button>
       <button id="clearBtn" class="btn btn-ghost" title="Remove everything from the workbench">🗑 <span class="btn-word">Clear</span></button>
@@ -59,6 +60,20 @@
       </div>
     </section>
 
+    <!-- Ready-made circuits and broken ones to fix -->
+    <aside class="panel panel-builds">
+      <button class="sheet-close" data-sheet="builds" aria-label="Close">&times;</button>
+      <h2 class="panel-title">Builds</h2>
+      <p class="panel-hint">Open a working circuit to explore, or fix a broken one.</p>
+
+      <h3 class="palette-group">Try these</h3>
+      <div id="exampleList" class="build-list"><!-- filled in by JavaScript --></div>
+
+      <h3 class="palette-group">Fix these</h3>
+      <p class="panel-hint">Each has exactly one thing wrong with it.</p>
+      <div id="puzzleList" class="build-list"><!-- filled in by JavaScript --></div>
+    </aside>
+
     <!-- RIGHT: challenges -->
     <aside class="panel panel-challenges">
       <button class="sheet-close" data-sheet="challenges" aria-label="Close">&times;</button>
@@ -75,6 +90,34 @@
   </main>
 
   <div id="sheetBackdrop" class="sheet-backdrop hidden"></div>
+
+  <!-- Asks before a build replaces whatever is on the bench. -->
+  <div id="confirmModal" class="modal hidden">
+    <div class="modal-card modal-small">
+      <h2 id="confirmTitle">Replace what's on your bench?</h2>
+      <p id="confirmText" class="confirm-text"></p>
+      <div class="confirm-actions">
+        <button id="confirmCancel" class="btn">Keep mine</button>
+        <button id="confirmOk" class="btn btn-primary">Open it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- "What's inside" — the explanation for a single part. -->
+  <div id="lessonModal" class="modal hidden">
+    <div class="modal-card">
+      <button id="lessonClose" class="modal-close" aria-label="Close">&times;</button>
+      <div class="lesson-head">
+        <svg id="lessonArt" class="lesson-art" viewBox="0 0 112 68"></svg>
+        <div>
+          <h2 id="lessonTitle">Part</h2>
+          <p id="lessonBlurb" class="lesson-blurb"></p>
+        </div>
+      </div>
+      <h3 class="lesson-sub">What's going on inside</h3>
+      <p id="lessonBody" class="lesson-body"></p>
+    </div>
+  </div>
 
   <!-- The "How to use" pop-up. Hidden until the button is clicked. -->
   <div id="helpModal" class="modal hidden">
@@ -99,6 +142,7 @@
   <script src="js/circuit.js"></script>
   <script src="js/mechanics.js"></script>
   <script src="js/challenges.js"></script>
+  <script src="js/library.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

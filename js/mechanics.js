@@ -24,6 +24,7 @@ function pitchRadius(part) {
   if (spec.mechanical === 'gear')   return spec.teeth * 0.1;
   if (spec.mechanical === 'pulley') return spec.radius / 10;
   if (spec.mechanical === 'wheel')  return spec.wheelRadius;
+  if (spec.mechanical === 'buggy')  return spec.wheelRadius;
   if (spec.mechanical === 'lever')  return part.state.arm || spec.arm;
   return 1;
 }
@@ -151,6 +152,23 @@ function transmit(from, to, st) {
     b.force  = b.torque / Math.max(r, 0.01);
   }
 
+  /* The buggy is where gearing stops being a number. Its wheels can
+     only push as hard as the turning force allows, and if that is
+     less than the ground demands it simply does not move. A slope
+     demands a great deal more than the flat. */
+  if (spec.mechanical === 'buggy') {
+    const r = pitchRadius(to);
+    const push   = b.torque / Math.max(r, 0.01);        // newtons at the wheels
+    const needed = to.state.hill ? spec.hillForce : spec.rollingForce;
+
+    b.push   = push;
+    b.needed = needed;
+    b.onHill = !!to.state.hill;
+    b.stalled = push < needed;
+    b.linear = b.stalled ? 0 : angularSpeed(b.rpm) * r;
+    if (b.stalled) b.rpm = 0;
+  }
+
   /* A lever trades distance for force: the further out you push,
      the less force you get but the further the end travels. */
   if (spec.mechanical === 'lever') {
@@ -189,6 +207,25 @@ function addMechanicalMessages(parts, result, reached) {
   const spec = PARTS[end.type];
   const ratio = st.ratio;
   const motorSt = result.partState[motor.id];
+
+  /* A buggy on the bench is the headline: is it moving or stuck? */
+  const buggy = driven.find(p => PARTS[p.type].mechanical === 'buggy');
+  if (buggy) {
+    const bst = result.partState[buggy.id];
+    const where = bst.onHill ? 'up the hill' : 'on the flat';
+    if (bst.stalled) {
+      result.issues.push({
+        level: 'warn', mech: true,
+        text: `Buggy stalled ${where} — the wheels can only push ${formatForce(bst.push)} and it needs ${formatForce(bst.needed)}. Gear down for more force.`
+      });
+    } else {
+      result.issues.push({
+        level: 'good', mech: true,
+        text: `Buggy driving ${where} at ${formatSpeed(bst.linear)}, pushing ${formatForce(bst.push)} (needs ${formatForce(bst.needed)}). Gear ratio ${formatRatio(bst.ratio)}.`
+      });
+    }
+    return;
+  }
 
   let detail;
   if (spec.mechanical === 'rack')       detail = `${spec.name} ${formatSpeed(st.linear)} · ${formatForce(st.force)}`;

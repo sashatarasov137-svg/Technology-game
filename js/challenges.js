@@ -229,6 +229,24 @@ const CHALLENGES = [
       && sim.partState[p.id].rpm > 0)
   },
   {
+    id: 'take-a-drive',
+    title: 'Take it for a drive',
+    brief: 'Get the buggy rolling along the flat.',
+    hint: 'Link your gear chain to the buggy\'s shaft. On the flat it barely needs any force, so almost any gearing will do.',
+    check: (parts, sim) => parts.some(p => p.type === 'buggy'
+      && sim.partState[p.id].driven && !sim.partState[p.id].stalled
+      && !sim.partState[p.id].onHill && sim.partState[p.id].linear > 0)
+  },
+  {
+    id: 'climb-the-hill',
+    title: 'Climb the hill',
+    brief: 'Tap the buggy to raise the hill, then get it up there.',
+    hint: 'The slope needs far more force than the flat. Gear down — a small gear driving a large one — and you trade the speed you do not need for the force you do.',
+    check: (parts, sim) => parts.some(p => p.type === 'buggy'
+      && sim.partState[p.id].driven && sim.partState[p.id].onHill
+      && !sim.partState[p.id].stalled)
+  },
+  {
     id: 'lever-lift',
     title: 'Lever it up',
     brief: 'Drive a lever and get more than 0.4 N of force at its tip.',

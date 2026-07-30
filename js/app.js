@@ -16,6 +16,8 @@ const state = {
   nextId: 1,
   armedLeg: null,       // the leg waiting for a partner, after one click
   completed: new Set(), // ids of finished challenges
+  solved: new Set(),    // ids of fixed puzzles
+  puzzle: null,         // the puzzle currently open, if any
   soundOn: true,
   memory: freshMemory()
 };
@@ -74,6 +76,7 @@ function addPart(type) {
       charge: 0,
       sun: 100,
       arm: spec.arm || 6,
+      hill: false,
       valueIndex: spec.values ? Math.max(0, spec.values.indexOf(startValue)) : 0
     }
   };
@@ -343,7 +346,12 @@ function onPartClick(part, spec, tapAt) {
     return;
   }
 
-  if (spec.toggle) {
+  if (spec.toggleHill) {
+    part.state.hill = !part.state.hill;
+    flashStatus(part.state.hill
+      ? 'Hill raised — the buggy needs far more force to climb it.'
+      : 'Back on the flat.');
+  } else if (spec.toggle) {
     part.state.closed = !part.state.closed;
   } else if (spec.values) {
     part.state.valueIndex = (part.state.valueIndex + 1) % spec.values.length;
@@ -474,6 +482,7 @@ function tick() {
   paint(sim);
   updateStatus(sim);
   updateChallenges(sim);
+  checkPuzzle(sim);
   updateSound(sim);
   requestAnimationFrame(tick);
 }
@@ -530,6 +539,15 @@ function paint(sim) {
     /* Anything that turns — the motor, gears, pulleys, wheels — is
        animated at its own speed and in its own direction. One
        revolution takes 60/rpm seconds. */
+    if (PARTS[part.type].mechanical === 'buggy') {
+      node.classList.toggle('on-hill', !!part.state.hill);
+      node.classList.toggle('stalled', !!st.stalled);
+      node.classList.toggle('rolling', (st.linear || 0) > 0.05);
+      if ((st.linear || 0) > 0.05) {
+        node.style.setProperty('--roll', Math.max(0.15, 30 / st.linear).toFixed(2) + 's');
+      }
+    }
+
     if (part.type === 'motor' || PARTS[part.type].mechanical) {
       const rpm = Math.max(st.rpm, 0);
       const turning = rpm > 0.5;
@@ -710,6 +728,8 @@ function save() {
       wires: state.wires,
       nextId: state.nextId,
       completed: [...state.completed],
+      solved: [...state.solved],
+      puzzle: state.puzzle,
       soundOn: state.soundOn
     }));
   } catch (err) { /* private browsing: just don't save */ }
@@ -730,9 +750,12 @@ function load() {
       part.state.sun         ??= 100;
       part.state.arm         ??= spec.arm || 6;
       part.state.capacitance ??= spec.capacitance || 0;
+      part.state.hill        ??= false;
     }
     state.nextId = data.nextId || (state.parts.length + state.wires.length + 1);
     state.completed = new Set(data.completed || []);
+    state.solved = new Set(data.solved || []);
+    state.puzzle = data.puzzle || null;
     state.soundOn = data.soundOn !== false;
     // Buttons are never held down when the page loads.
     state.parts.forEach(p => { p.state.pressed = false; });
@@ -765,8 +788,14 @@ function buildPalette() {
       card.innerHTML = `
         <svg class="palette-art" viewBox="0 0 ${PART_W} ${PART_H}">${spec.art}</svg>
         <span class="palette-name">${spec.name}</span>
-        <span class="palette-blurb">${spec.blurb}</span>`;
-      card.addEventListener('click', () => {
+        <span class="palette-blurb">${spec.blurb}</span>
+        <span class="palette-info" title="What's inside a ${spec.name.toLowerCase()}?">?</span>`;
+      card.addEventListener('click', e => {
+        // The little ? opens the explanation instead of adding the part.
+        if (e.target.classList.contains('palette-info')) {
+          showLesson(type);
+          return;
+        }
         addPart(type);
         // Get out of the way so the new part is visible straight away.
         if (sheetMode()) closeSheets();
@@ -776,6 +805,143 @@ function buildPalette() {
   }
 }
 
+/* ============================================================
+   Opening a ready-made build
+   ============================================================ */
+
+/* Turn a build description from library.js into a real bench. */
+function loadBuild(build) {
+  clearBench();
+
+  const ids = {};
+  for (const [name, type, x, y] of build.parts) {
+    const before = state.parts.length;
+    addPart(type);
+    if (state.parts.length === before) continue;   // refused, e.g. a second source
+    const part = state.parts[state.parts.length - 1];
+    part.x = x; part.y = y;
+    ids[name] = part.id;
+    Object.assign(part.state, (build.state && build.state[name]) || {});
+  }
+
+  for (const [a, an, b, bn, kind] of build.links) {
+    if (!ids[a] || !ids[b]) continue;
+    state.wires.push({
+      id: 'w' + (state.nextId++),
+      kind: kind || 'wire',
+      from: { partId: ids[a], legId: an },
+      to:   { partId: ids[b], legId: bn }
+    });
+  }
+
+  rebuildBench();
+  save();
+}
+
+/* Opening a build throws away whatever was there, so ask first —
+   there is no undo. */
+let pendingBuild = null;
+
+function askToOpen(title, text, onYes) {
+  if (state.parts.length === 0) { onYes(); return; }
+  pendingBuild = onYes;
+  document.getElementById('confirmTitle').textContent = 'Open "' + title + '"?';
+  document.getElementById('confirmText').textContent = text;
+  document.getElementById('confirmModal').classList.remove('hidden');
+}
+
+function openExample(example) {
+  askToOpen(example.title, 'This will clear what is on your bench first.', () => {
+    state.puzzle = null;
+    loadBuild(example.build);
+    flashStatus('Opened "' + example.title + '" — take it apart and see how it works.');
+    if (sheetMode()) closeSheets();
+  });
+}
+
+function openPuzzle(puzzle) {
+  askToOpen(puzzle.title, 'This will clear what is on your bench first.', () => {
+    state.puzzle = puzzle.id;
+    loadBuild(puzzle.build);
+    flashStatus('🔧 ' + puzzle.brief);
+    if (sheetMode()) closeSheets();
+  });
+}
+
+/* Watch the open puzzle and celebrate when it is put right. */
+function checkPuzzle(sim) {
+  if (!state.puzzle) return;
+  const puzzle = PUZZLES.find(p => p.id === state.puzzle);
+  if (!puzzle) return;
+
+  let fixed = false;
+  try { fixed = !!puzzle.check(state.parts, sim); } catch (err) { fixed = false; }
+  if (!fixed) return;
+
+  const first = !state.solved.has(puzzle.id);
+  state.solved.add(puzzle.id);
+  state.puzzle = null;
+  buildLibrary();
+  save();
+  if (first) showAnswer(puzzle);
+}
+
+function showAnswer(puzzle) {
+  document.getElementById('lessonTitle').textContent = '✅ Fixed: ' + puzzle.title;
+  document.getElementById('lessonBlurb').textContent = puzzle.brief;
+  document.getElementById('lessonArt').innerHTML = PARTS.led.art;
+  document.querySelector('.lesson-sub').textContent = 'What was wrong';
+  document.getElementById('lessonBody').textContent = puzzle.answer;
+  document.getElementById('lessonModal').classList.remove('hidden');
+}
+
+
+/* ============================================================
+   "What's inside" — the explanation for one part
+   ============================================================ */
+
+function showLesson(type) {
+  const spec = PARTS[type];
+  document.getElementById('lessonTitle').textContent = spec.name;
+  document.getElementById('lessonBlurb').textContent = spec.blurb;
+  document.getElementById('lessonArt').innerHTML = spec.art;
+  document.querySelector('.lesson-sub').textContent = "What's going on inside";
+  document.getElementById('lessonBody').textContent = spec.lesson || '';
+  document.getElementById('lessonModal').classList.remove('hidden');
+}
+
+
+/* ============================================================
+   The Builds panel
+   ============================================================ */
+
+function buildLibrary() {
+  const examples = document.getElementById('exampleList');
+  const puzzles  = document.getElementById('puzzleList');
+  examples.innerHTML = '';
+  puzzles.innerHTML = '';
+
+  for (const example of EXAMPLES) {
+    const card = document.createElement('button');
+    card.className = 'build-item';
+    card.innerHTML = `<span class="build-name">${example.title}</span>
+                      <span class="build-blurb">${example.blurb}</span>`;
+    card.addEventListener('click', () => openExample(example));
+    examples.appendChild(card);
+  }
+
+  for (const puzzle of PUZZLES) {
+    const done = state.solved.has(puzzle.id);
+    const card = document.createElement('button');
+    card.className = 'build-item build-puzzle' + (done ? ' solved' : '');
+    card.innerHTML = `<span class="build-name">${done ? '✅ ' : '🔧 '}${puzzle.title}</span>
+                      <span class="build-blurb">${puzzle.brief}</span>`;
+    card.addEventListener('click', () => openPuzzle(puzzle));
+    puzzles.appendChild(card);
+  }
+}
+
+
 /* ---- the sliding panels used on touch screens ---- */
 
 function sheetMode() {
@@ -784,7 +950,7 @@ function sheetMode() {
 
 function openSheet(which) {
   closeSheets();
-  const panel = document.querySelector(which === 'parts' ? '.panel-parts' : '.panel-challenges');
+  const panel = document.querySelector('.panel-' + which);
   panel.classList.add('open');
   document.getElementById('sheetBackdrop').classList.remove('hidden');
 }
@@ -802,6 +968,7 @@ function init() {
   buildPalette();
   buildChallengeList();
   load();
+  buildLibrary();
   rebuildBench();
 
   document.getElementById('clearBtn').addEventListener('click', clearBench);
@@ -819,6 +986,23 @@ function init() {
   soundBtn.addEventListener('click', () => { state.soundOn = !state.soundOn; paintSoundBtn(); save(); });
   paintSoundBtn();
 
+  // The part explanation pop-up.
+  const lessonModal = document.getElementById('lessonModal');
+  document.getElementById('lessonClose').addEventListener('click', () => lessonModal.classList.add('hidden'));
+  lessonModal.addEventListener('click', e => { if (e.target === lessonModal) lessonModal.classList.add('hidden'); });
+
+  // The "this will clear your bench" confirmation.
+  const confirmModal = document.getElementById('confirmModal');
+  document.getElementById('confirmCancel').addEventListener('click', () => {
+    pendingBuild = null;
+    confirmModal.classList.add('hidden');
+  });
+  document.getElementById('confirmOk').addEventListener('click', () => {
+    confirmModal.classList.add('hidden');
+    const go = pendingBuild; pendingBuild = null;
+    if (go) go();
+  });
+
   const modal = document.getElementById('helpModal');
   document.getElementById('helpBtn').addEventListener('click', () => modal.classList.remove('hidden'));
   document.getElementById('helpClose').addEventListener('click', () => modal.classList.add('hidden'));
@@ -828,12 +1012,16 @@ function init() {
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     modal.classList.add('hidden');
+    lessonModal.classList.add('hidden');
+    confirmModal.classList.add('hidden');
+    pendingBuild = null;
     closeSheets();
     state.armedLeg = null;
     refreshLegHighlights();
   });
 
   document.getElementById('partsBtn').addEventListener('click', () => openSheet('parts'));
+  document.getElementById('buildsBtn').addEventListener('click', () => openSheet('builds'));
   document.getElementById('challengesBtn').addEventListener('click', () => openSheet('challenges'));
   document.getElementById('sheetBackdrop').addEventListener('click', closeSheets);
   document.querySelectorAll('.sheet-close').forEach(b => b.addEventListener('click', closeSheets));

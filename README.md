@@ -5,8 +5,9 @@ battery, an LED, a resistor and a switch, wire them together, and watch the circ
 alive — then bolt gears onto the motor and watch electricity turn into movement. All so
 you can learn how this stuff actually works before spending money on a real kit.
 
-Eighteen built-in challenges take you from "light a single LED" to building a gear train,
-and they tick themselves off automatically as soon as your build works.
+Twenty built-in challenges take you from "light a single LED" to driving a geared buggy up
+a hill, and they tick themselves off automatically as soon as your build works. There are
+also ready-made circuits to open and take apart, and broken ones to fix.
 
 ---
 
@@ -47,6 +48,7 @@ your browser and works immediately. There is nothing to install and nothing to r
 | **Rack** | Turning a rotation into a straight-line push |
 | **Wheel** | How fast a rolling wheel actually travels |
 | **Lever** | A long arm moves further; a short arm pushes harder |
+| **Buggy** | Why vehicles have gears at all — see below |
 
 Your build and your progress are saved in your own browser, so you can close the tab and
 come back to it later.
@@ -63,6 +65,29 @@ other — you cannot solder a wire onto a spinning axle.
 The bar along the bottom of the screen is where the numbers appear: what is lit or
 turning, any warnings, and — once you build a gear chain — the gear ratio along with the
 speed and turning force at the end of it.
+
+### Four ways in
+
+- **Builds → Try these.** Six working circuits — a torch, a doorbell, a dimmer lamp, a
+  solar light, a light that lingers after you switch it off, and a geared buggy. Open one
+  and take it apart. Starting from something that already works beats an empty screen.
+- **Builds → Fix these.** Six circuits with exactly one thing wrong: an LED in backwards,
+  a missing wire home, a resistor twenty times too big, and so on. Find the fault and it
+  tells you what it was. Fault-finding is most of what electronics actually is.
+- **The ? on any part.** Opens a plain-English explanation of what is physically happening
+  inside it — why an LED only works one way round, what a capacitor is really doing, how a
+  motor keeps chasing a position it can never reach.
+- **Challenges.** Twenty goals that mark themselves off as you achieve them.
+
+### The buggy
+
+The buggy is where gearing stops being a number. Its wheels can only push as hard as the
+turning force reaching them allows, and a slope demands far more than the flat — tap the
+buggy to raise the hill and find out.
+
+Geared up, it flies along the flat and then sits helpless at the bottom of the slope.
+Geared down, it crawls but climbs. There is no single setting that wins at both, which is
+exactly why real vehicles have more than one gear.
 
 ### On an iPad
 
@@ -95,7 +120,8 @@ css/style.css       how everything looks. All colours are set once at the top
 js/parts.js         the parts catalogue: size, connection points and drawing for each part
 js/circuit.js       the electrical simulation — works out where current flows
 js/mechanics.js     the mechanical simulation — works out what turns, and how fast
-js/challenges.js    the eighteen lessons and the rules that mark them complete
+js/challenges.js    the twenty challenges and the rules that mark them complete
+js/library.js       the ready-made circuits and the broken ones to fix
 js/app.js           the glue: tapping, dragging, wiring, and drawing the screen
 ```
 
@@ -202,6 +228,11 @@ away. Give it `legs` if it carries electricity and `shafts` if it carries turnin
 list with a `title`, a `brief`, a `hint`, and a `check` function that returns `true` when
 the goal is met.
 
+**Add an example or a puzzle** — open `js/library.js`. A build is just a list of parts with
+positions and a list of links between their connection points. A puzzle is the same plus a
+`check` saying when it is fixed and an `answer` explaining what was wrong. The tests will
+automatically verify that any new puzzle really is broken to begin with.
+
 **Change the colours** — everything lives in the `:root` block at the top of
 `css/style.css`. Change one value there and it updates across the whole app.
 
@@ -217,7 +248,7 @@ npm install
 npm test
 ```
 
-This opens a real browser and runs 116 checks across three suites:
+This opens a real browser and runs 161 checks across four suites:
 
 - **`tests/circuit.test.js`** — 38 checks on the electronics: that Ohm's law gives the
   right current, that a backwards LED stays dark, that a short circuit is caught, that
@@ -227,6 +258,12 @@ This opens a real browser and runs 116 checks across three suites:
   while belts do not, that speed times force is conserved through a chain, that a lever
   with half the arm gives twice the force, that a solar panel gives nothing in the dark,
   and that a capacitor charges up and then runs the light on its own.
+- **`tests/library.test.js`** — 45 checks on the newest features: that every part has a
+  real explanation written for it, that the buggy climbs when geared down and stalls when
+  geared up, that all six example circuits actually work, and — the two that matter most —
+  that every puzzle is genuinely broken when it opens and that every one of them can be
+  fixed. A puzzle that works straight away would teach nothing, and one that cannot be
+  solved would just be cruel.
 - **`tests/touch.test.js`** — 28 checks on an emulated iPad: that the bench really does
   fill the screen, that the sheets open and close, that tap targets meet Apple's 44-pixel
   minimum, that delete buttons appear without a hover, that the connect prompt never

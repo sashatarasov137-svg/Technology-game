@@ -335,8 +335,8 @@ const near = (a, b, tol = 0.02) => Math.abs(a - b) <= tol * Math.max(1, Math.abs
   check('14c "get rolling" won',      done.includes('roll-on'), true);
   check('14d "gear up" not yet',      done.includes('gear-up'), false);
 
-  check('14e all 18 challenges listed',
-        await page.evaluate(() => CHALLENGES.length), 18);
+  check('14e all 20 challenges listed',
+        await page.evaluate(() => CHALLENGES.length), 20);
 
   console.log(`\n${pass} passed, ${fail} failed`);
   console.log(errors.length ? 'ERRORS:\n' + errors.join('\n') : 'No console errors.');
